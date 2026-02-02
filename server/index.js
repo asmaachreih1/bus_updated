@@ -8,9 +8,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // In-memory storage
-let vanLocations = {
-  1: { id: 1, lat: 33.8938, lng: 35.5018, lastUpdated: new Date() }
-};
+let vanLocations = {};
 
 let memberLocations = {};
 
@@ -74,9 +72,7 @@ app.post('/api/update-location', (req, res) => {
 
 // Reset all data
 app.get('/api/reset', (req, res) => {
-  vanLocations = {
-    1: { id: 1, lat: 33.8938, lng: 35.5018, lastUpdated: new Date() }
-  };
+  vanLocations = {};
   memberLocations = {};
   res.json({ success: true, message: 'Simulation reset' });
 });
