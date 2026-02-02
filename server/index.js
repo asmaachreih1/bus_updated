@@ -81,6 +81,10 @@ app.get('/api/reset', (req, res) => {
   res.json({ success: true, message: 'Simulation reset' });
 });
 
+app.get('/', (req, res) => {
+  res.send('Van Tracker Backend is Running...');
+});
+
 app.listen(port, () => {
   console.log(`Van Tracker Backend listening at http://localhost:${port}`);
 });
