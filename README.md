@@ -1,8 +1,8 @@
-# 🚌 Van Tracker: Premium Live Training Logistics
+# 🚌 Bus Tracker: Premium Live Training Logistics
 
 A real-time, high-fidelity bus tracking solution designed for training groups in Lebanon (Beirut & South Lebanon). This project was born from a simple need: **coordinating student pickups safely and efficiently.**
 
-## 🌟 The "Why"
+## The "Why"
 Coordinating bus pickups for training sessions can be stressful. Students often wait outside for long periods without knowing exactly where the driver is. 
 
 **Van Tracker** solves this by:
@@ -13,7 +13,7 @@ Coordinating bus pickups for training sessions can be stressful. Students often 
 
 ---
 
-## 🚀 Features
+## Features
 - **Live Map**: Custom-styled Google Maps restricted to Beirut/South Lebanon.
 - **Dynamic Presence**: Each student joins with their name and appears as a person icon.
 - **Smart ETA**: Uses Google Distance Matrix API for precise driving times.
@@ -22,14 +22,14 @@ Coordinating bus pickups for training sessions can be stressful. Students often 
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 - **Frontend**: Next.js 16 (App Router), Tailwind CSS 4.
 - **Backend**: Node.js, Express (Real-time in-memory state).
 - **APIs**: Google Maps JavaScript API, Google Directions API, Google Distance Matrix.
 
 ---
 
-## 💻 Local Setup
+## Local Setup
 
 ### 1. Clone the repository
 ```bash
@@ -72,7 +72,7 @@ npm run dev
 
 ---
 
-## 🌎 Deployment Guide
+## Deployment Guide
 
 ### Backend (Render/Heroku/Railway)
 The server in the `/server` folder is ready for production. 
