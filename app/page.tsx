@@ -1,4 +1,4 @@
-'use client';
+'use client'; // Force Vercel rebuild
 
 import { useEffect, useRef, useState } from 'react';
 
