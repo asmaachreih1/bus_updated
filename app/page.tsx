@@ -26,10 +26,17 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userName, setUserName] = useState<string>('');
   const [showNameModal, setShowNameModal] = useState(false);
+  const [isDriver, setIsDriver] = useState(false);
 
   useEffect(() => {
     myIdRef.current = localStorage.getItem('bus_user_id') || Math.random().toString(36).substring(7);
     localStorage.setItem('bus_user_id', myIdRef.current);
+
+    // Check if Driver Mode is active
+    const driverFlag = localStorage.getItem('is_driver');
+    if (driverFlag === 'true') {
+      setIsDriver(true);
+    }
 
     const savedName = localStorage.getItem('bus_user_name');
     if (savedName) {
@@ -47,6 +54,12 @@ export default function Home() {
     }
   };
 
+  const stopDriving = () => {
+    localStorage.removeItem('is_driver');
+    setIsDriver(false);
+    window.location.reload(); // Reload to reset state deeply
+  };
+
   /* 1️⃣ Student GPS */
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -61,7 +74,7 @@ export default function Home() {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           });
-          setStatus('Live location enabled');
+          setStatus(isDriver ? 'Broadcasting Bus Location' : 'Live location enabled');
         },
         () => setStatus('Location permission denied'),
         { enableHighAccuracy: true }
@@ -69,7 +82,7 @@ export default function Home() {
     };
 
     watchPos();
-  }, []);
+  }, [isDriver]);
 
   /* 2️⃣ Init map ONCE */
   useEffect(() => {
@@ -80,7 +93,6 @@ export default function Home() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         const res = await fetch(`${apiUrl}/api/vans`);
         const data = await res.json();
-        const vans = data.vans || [];
 
         mapRef.current = new window.google.maps.Map(
           document.getElementById('map'),
@@ -126,29 +138,49 @@ export default function Home() {
     };
 
     initMap();
-  }, [studentPos]);
+  }, [studentPos]); // Start map when we have pos
 
   /* 3️⃣ Poll backend */
   const startPolling = () => {
     const distanceMatrixService = new window.google.maps.DistanceMatrixService();
 
     intervalRef.current = setInterval(async () => {
+      // Need latest state inside interval
+      // Ideally use a ref for isDriver, but let's just rely on the fact that isDriver doesn't change often without reload
+      // OR pass it in. For simplicity, we re-check localStorage or rely on closure capture if dependencies were correct.
+      // But setInterval doesn't update closure scope. Let's use a "Ref" approach for stable access if needed.
+      // Actually, simplest is to use current detected location.
+
       if (!studentPos) return;
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const currentlyDriving = localStorage.getItem('is_driver') === 'true';
 
-        // Send my location
-        await fetch(`${apiUrl}/api/update-member`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: myIdRef.current,
-            lat: studentPos.lat,
-            lng: studentPos.lng,
-            name: userName || 'Someone'
-          })
-        });
+        if (currentlyDriving) {
+          // I AM THE BUS
+          await fetch(`${apiUrl}/api/update-location`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              van_id: 1,
+              lat: studentPos.lat,
+              lng: studentPos.lng
+            })
+          });
+        } else {
+          // I AM A STUDENT
+          await fetch(`${apiUrl}/api/update-member`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: myIdRef.current,
+              lat: studentPos.lat,
+              lng: studentPos.lng,
+              name: userName || 'Someone'
+            })
+          });
+        }
 
         // Get everyone
         const res = await fetch(`${apiUrl}/api/vans`);
@@ -258,24 +290,32 @@ export default function Home() {
           memberMarkersRef.current[m.id].setPosition({ lat: m.lat, lng: m.lng });
         });
 
-        // 3. Update "You" Marker
-        if (!studentMarkerRef.current && mapRef.current) {
-          studentMarkerRef.current = new window.google.maps.Marker({
-            map: mapRef.current,
-            title: 'You',
-            icon: {
-              path: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
-              fillColor: '#2563EB', // Blue for You
-              fillOpacity: 1,
-              strokeColor: '#fff',
-              strokeWeight: 2,
-              scale: 1.5,
-              anchor: new window.google.maps.Point(12, 12)
-            }
-          });
-        }
-        if (studentMarkerRef.current) {
-          studentMarkerRef.current.setPosition(studentPos);
+        // 3. Update "You" Marker (ONLY IF NOT DRIVING - bus marker covers driver)
+        if (!currentlyDriving) {
+          if (!studentMarkerRef.current && mapRef.current) {
+            studentMarkerRef.current = new window.google.maps.Marker({
+              map: mapRef.current,
+              title: 'You',
+              icon: {
+                path: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+                fillColor: '#2563EB', // Blue for You
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2,
+                scale: 1.5,
+                anchor: new window.google.maps.Point(12, 12)
+              }
+            });
+          }
+          if (studentMarkerRef.current) {
+            studentMarkerRef.current.setPosition(studentPos);
+          }
+        } else {
+          // If driving, hide student marker if it exists
+          if (studentMarkerRef.current) {
+            studentMarkerRef.current.setMap(null);
+            studentMarkerRef.current = null;
+          }
         }
 
       } catch (e) {
@@ -311,12 +351,14 @@ export default function Home() {
 
         <div className="flex items-center justify-between mb-10 relative z-10">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-white rounded-2xl shadow-xl shadow-slate-200 border border-slate-100 flex items-center justify-center">
+            <div className={`p-3 rounded-2xl shadow-xl shadow-slate-200 border border-slate-100 flex items-center justify-center ${isDriver ? 'bg-amber-100' : 'bg-white'}`}>
               <span className="text-2xl drop-shadow-sm">🚌</span>
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none mb-1">Bus Tracker</h1>
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Training Group</p>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${isDriver ? 'text-amber-600' : 'text-slate-400'}`}>
+                {isDriver ? 'DRIVER MODE ACTIVE' : 'Training Group'}
+              </p>
             </div>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-slate-600 active:scale-95">
@@ -328,7 +370,7 @@ export default function Home() {
           <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
             <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1.5">System Status</p>
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${status.includes('enabled') ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+              <span className={`w-2 h-2 rounded-full ${status.includes('enabled') || status.includes('Broadcasting') ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
               <p className="text-sm font-semibold text-slate-700">{status}</p>
             </div>
           </div>
@@ -342,7 +384,7 @@ export default function Home() {
               </span>
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-xs font-medium text-slate-500">
-                  {etaSeconds === null ? 'Locating bus...' : etaSeconds <= 60 ? '🚌 Bus arrived' : 'Bus is on the way'}
+                  {isDriver ? 'You are driving 🚌' : etaSeconds === null ? 'Locating bus...' : etaSeconds <= 60 ? '🚌 Bus arrived' : 'Bus is on the way'}
                 </span>
               </div>
             </div>
@@ -355,6 +397,8 @@ export default function Home() {
           <div className="space-y-3 pb-6">
             {members.map((m) => {
               const isMe = m.id === myIdRef.current;
+              if (isMe && isDriver) return null; // Don't show myself in the list if I am driving
+
               return (
                 <div key={m.id} className={`flex items-center gap-3 p-3 backdrop-blur rounded-2xl border transition-all group ${isMe ? 'bg-blue-50/50 border-blue-100 shadow-sm' : 'bg-white/50 border-slate-100 hover:border-amber-200'}`}>
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner group-hover:scale-110 transition-transform font-bold ${isMe ? 'bg-blue-100 text-blue-600' : 'bg-emerald-50 text-slate-700'}`}>
@@ -379,7 +423,7 @@ export default function Home() {
                 </div>
               );
             })}
-            {members.length <= 1 && (
+            {members.length === 0 && (
               <p className="text-[11px] text-slate-400 italic text-center py-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
                 Waiting for friends...
               </p>
@@ -388,15 +432,24 @@ export default function Home() {
         </div>
 
         <div className="mt-6">
-          <a href="/driver" className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-[1.5rem] transition-all shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-wide">
-            DRIVER MODE
-          </a>
+          {isDriver ? (
+            <button
+              onClick={stopDriving}
+              className="flex items-center justify-center gap-2 w-full py-4 bg-red-500 hover:bg-red-600 text-white text-xs font-black rounded-[1.5rem] transition-all shadow-xl shadow-red-500/20 active:scale-95 uppercase tracking-wide"
+            >
+              STOP DRIVING
+            </button>
+          ) : (
+            <a href="/driver" className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-[1.5rem] transition-all shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-wide">
+              DRIVER MODE
+            </a>
+          )}
         </div>
 
         <div className="mt-6 lg:mt-auto">
-          <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
-            <p className="text-[10px] text-blue-600/70 leading-relaxed font-bold">
-              Sharing live location with friends.
+          <div className={`p-4 rounded-2xl border ${isDriver ? 'bg-amber-50 border-amber-100' : 'bg-blue-50/50 border-blue-100'}`}>
+            <p className={`text-[10px] leading-relaxed font-bold ${isDriver ? 'text-amber-600' : 'text-blue-600/70'}`}>
+              {isDriver ? 'You are broadcasting the bus location.' : 'Sharing live location with friends.'}
             </p>
           </div>
         </div>
@@ -416,8 +469,8 @@ export default function Home() {
         )}
       </main>
 
-      {/* Name Capture Modal */}
-      {showNameModal && (
+      {/* Name Capture Modal (Only if not driving, usually) */}
+      {showNameModal && !isDriver && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md">
           <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl border border-white relative overflow-hidden animate-in fade-in zoom-in duration-300">
             <div className="absolute inset-0 bus-pattern opacity-10 pointer-events-none" />
