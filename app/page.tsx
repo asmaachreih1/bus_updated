@@ -13,6 +13,7 @@ export default function Home() {
   const vanMarkerRef = useRef<any>(null);
   const studentMarkerRef = useRef<any>(null);
   const directionsServiceRef = useRef<any>(null);
+  const directionsRendererRef = useRef<any>(null);
   const intervalRef = useRef<any>(null);
 
   const memberMarkersRef = useRef<{ [key: string]: any }>({});
@@ -22,6 +23,7 @@ export default function Home() {
   const studentPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const isDriverRef = useRef(false);
   const userNameRef = useRef('');
+  const lastRouteUpdateRef = useRef<number>(0);
 
   // State for UI
   const [studentPos, setStudentPos] = useState<{ lat: number; lng: number } | null>(null);
@@ -136,6 +138,18 @@ export default function Home() {
           }
         );
 
+        // Add DirectionsRenderer for the blue route line
+        directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+          map: mapRef.current,
+          suppressMarkers: true, // We have our own custom markers
+          preserveViewport: true, // Don't auto-zoom wildly
+          polylineOptions: {
+            strokeColor: '#2563EB', // Blue line
+            strokeWeight: 5,
+            strokeOpacity: 0.6
+          }
+        });
+
         vanMarkerRef.current = new window.google.maps.Marker({
           map: mapRef.current,
           title: 'Bus',
@@ -214,6 +228,7 @@ export default function Home() {
 
         if (vans.length > 0) {
           const van = vans[0];
+          const vanLoc = { lat: van.lat, lng: van.lng };
 
           if (!vanMarkerRef.current && mapRef.current) {
             vanMarkerRef.current = new window.google.maps.Marker({
@@ -231,7 +246,28 @@ export default function Home() {
             });
           }
           if (vanMarkerRef.current) {
-            vanMarkerRef.current.setPosition({ lat: van.lat, lng: van.lng });
+            vanMarkerRef.current.setPosition(vanLoc);
+          }
+
+          // 🆕 DRAW ROUTE if Not Driver (Throttled: 10s)
+          if (!currentlyDriving && directionsServiceRef.current && directionsRendererRef.current) {
+            const now = Date.now();
+            if (now - lastRouteUpdateRef.current > 10000) { // Update route max every 10s
+              lastRouteUpdateRef.current = now;
+
+              directionsServiceRef.current.route(
+                {
+                  origin: vanLoc,
+                  destination: currentPos,
+                  travelMode: window.google.maps.TravelMode.DRIVING,
+                },
+                (result: any, status: string) => {
+                  if (status === 'OK') {
+                    directionsRendererRef.current.setDirections(result);
+                  }
+                }
+              );
+            }
           }
 
           // Calculate ETAs for WAITING members
@@ -283,6 +319,7 @@ export default function Home() {
         }
 
         // 2. Update/Cleanup Member Markers
+        // Remove markers for members who arrived or left
         Object.keys(memberMarkersRef.current).forEach(id => {
           if (!currentMembers.find((m: any) => m.id === id) || id === myIdRef.current) {
             if (memberMarkersRef.current[id]) {
