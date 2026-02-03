@@ -1,4 +1,4 @@
-'use client'; // Force Vercel rebuild (User Request)
+'use client'; // Force Vercel rebuild
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -18,6 +18,12 @@ export default function Home() {
   const memberMarkersRef = useRef<{ [key: string]: any }>({});
   const myIdRef = useRef<string>('');
 
+  // REFS for Polling (Fixes Stale Closure)
+  const studentPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const isDriverRef = useRef(false);
+  const userNameRef = useRef('');
+
+  // State for UI
   const [studentPos, setStudentPos] = useState<{ lat: number; lng: number } | null>(null);
   const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
   const [status, setStatus] = useState('Requesting location…');
@@ -29,18 +35,22 @@ export default function Home() {
   const [isDriver, setIsDriver] = useState(false);
 
   useEffect(() => {
+    // Init ID
     myIdRef.current = localStorage.getItem('bus_user_id') || Math.random().toString(36).substring(7);
     localStorage.setItem('bus_user_id', myIdRef.current);
 
-    // Check if Driver Mode is active
+    // Init Driver Mode
     const driverFlag = localStorage.getItem('is_driver');
     if (driverFlag === 'true') {
       setIsDriver(true);
+      isDriverRef.current = true;
     }
 
+    // Init Name
     const savedName = localStorage.getItem('bus_user_name');
     if (savedName) {
       setUserName(savedName);
+      userNameRef.current = savedName;
     } else {
       setShowNameModal(true);
     }
@@ -49,7 +59,10 @@ export default function Home() {
   const handleSaveName = (e: React.FormEvent) => {
     e.preventDefault();
     if (userName.trim()) {
-      localStorage.setItem('bus_user_name', userName.trim());
+      const name = userName.trim();
+      localStorage.setItem('bus_user_name', name);
+      setUserName(name);
+      userNameRef.current = name;
       setShowNameModal(false);
     }
   };
@@ -57,7 +70,8 @@ export default function Home() {
   const stopDriving = () => {
     localStorage.removeItem('is_driver');
     setIsDriver(false);
-    window.location.reload(); // Reload to reset state deeply
+    isDriverRef.current = false;
+    window.location.reload();
   };
 
   /* 1️⃣ Student GPS */
@@ -70,11 +84,16 @@ export default function Home() {
     const watchPos = () => {
       navigator.geolocation.watchPosition(
         (pos) => {
-          setStudentPos({
+          const newPos = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
-          });
-          setStatus(isDriver ? 'Broadcasting Bus Location' : 'Live location enabled');
+          };
+
+          // Update State AND Ref
+          setStudentPos(newPos);
+          studentPosRef.current = newPos;
+
+          setStatus(isDriverRef.current ? 'Broadcasting Bus Location' : 'Live location enabled');
         },
         () => setStatus('Location permission denied'),
         { enableHighAccuracy: true }
@@ -82,7 +101,7 @@ export default function Home() {
     };
 
     watchPos();
-  }, [isDriver]);
+  }, []);
 
   /* 2️⃣ Init map ONCE */
   useEffect(() => {
@@ -91,6 +110,7 @@ export default function Home() {
     const initMap = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        // Initial fetch to get world state
         const res = await fetch(`${apiUrl}/api/vans`);
         const data = await res.json();
 
@@ -138,24 +158,23 @@ export default function Home() {
     };
 
     initMap();
-  }, [studentPos]); // Start map when we have pos
+  }, [studentPos]);
 
   /* 3️⃣ Poll backend */
   const startPolling = () => {
     const distanceMatrixService = new window.google.maps.DistanceMatrixService();
 
-    intervalRef.current = setInterval(async () => {
-      // Need latest state inside interval
-      // Ideally use a ref for isDriver, but let's just rely on the fact that isDriver doesn't change often without reload
-      // OR pass it in. For simplicity, we re-check localStorage or rely on closure capture if dependencies were correct.
-      // But setInterval doesn't update closure scope. Let's use a "Ref" approach for stable access if needed.
-      // Actually, simplest is to use current detected location.
+    // Clear existing interval if any
+    if (intervalRef.current) clearInterval(intervalRef.current);
 
-      if (!studentPos) return;
+    intervalRef.current = setInterval(async () => {
+      // Use REF to get latest position inside interval
+      const currentPos = studentPosRef.current;
+      if (!currentPos) return;
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        const currentlyDriving = localStorage.getItem('is_driver') === 'true';
+        const currentlyDriving = isDriverRef.current;
 
         if (currentlyDriving) {
           // I AM THE BUS
@@ -164,8 +183,8 @@ export default function Home() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               van_id: 1,
-              lat: studentPos.lat,
-              lng: studentPos.lng
+              lat: currentPos.lat,
+              lng: currentPos.lng
             })
           });
         } else {
@@ -175,9 +194,9 @@ export default function Home() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               id: myIdRef.current,
-              lat: studentPos.lat,
-              lng: studentPos.lng,
-              name: userName || 'Someone'
+              lat: currentPos.lat,
+              lng: currentPos.lng,
+              name: userNameRef.current || 'Someone' // Use Ref name
             })
           });
         }
@@ -216,6 +235,9 @@ export default function Home() {
           }
 
           // Calculate ETAs for WAITING members
+          // If I am driving, I don't need distance to myself (though I am the bus)
+          // But I might want to see distance to members.
+          // Currently loop calculates distance FROM bus TO members.
           const waitingDestinations = currentMembers.map((m: any) => ({ lat: m.lat, lng: m.lng }));
 
           if (waitingDestinations.length > 0) {
@@ -261,11 +283,12 @@ export default function Home() {
         }
 
         // 2. Update/Cleanup Member Markers
-        // Remove markers for members who arrived or left
         Object.keys(memberMarkersRef.current).forEach(id => {
           if (!currentMembers.find((m: any) => m.id === id) || id === myIdRef.current) {
-            memberMarkersRef.current[id].setMap(null);
-            delete memberMarkersRef.current[id];
+            if (memberMarkersRef.current[id]) {
+              memberMarkersRef.current[id].setMap(null);
+              delete memberMarkersRef.current[id];
+            }
           }
         });
 
@@ -290,7 +313,7 @@ export default function Home() {
           memberMarkersRef.current[m.id].setPosition({ lat: m.lat, lng: m.lng });
         });
 
-        // 3. Update "You" Marker (ONLY IF NOT DRIVING - bus marker covers driver)
+        // 3. Update "You" Marker
         if (!currentlyDriving) {
           if (!studentMarkerRef.current && mapRef.current) {
             studentMarkerRef.current = new window.google.maps.Marker({
@@ -308,10 +331,9 @@ export default function Home() {
             });
           }
           if (studentMarkerRef.current) {
-            studentMarkerRef.current.setPosition(studentPos);
+            studentMarkerRef.current.setPosition(currentPos);
           }
         } else {
-          // If driving, hide student marker if it exists
           if (studentMarkerRef.current) {
             studentMarkerRef.current.setMap(null);
             studentMarkerRef.current = null;
@@ -432,17 +454,13 @@ export default function Home() {
         </div>
 
         <div className="mt-6">
-          {isDriver ? (
+          {isDriver && (
             <button
               onClick={stopDriving}
               className="flex items-center justify-center gap-2 w-full py-4 bg-red-500 hover:bg-red-600 text-white text-xs font-black rounded-[1.5rem] transition-all shadow-xl shadow-red-500/20 active:scale-95 uppercase tracking-wide"
             >
               STOP DRIVING
             </button>
-          ) : (
-            <a href="/driver" className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-[1.5rem] transition-all shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-wide">
-              DRIVER MODE
-            </a>
           )}
         </div>
 
