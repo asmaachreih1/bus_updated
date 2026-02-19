@@ -1,15 +1,96 @@
 {
-  "users": {
-    "qi0r6c": {
+  "users": [
+    {
       "id": "qi0r6c",
       "name": "asmaa",
       "role": "user",
       "email": "asmaachreih@gmail.com",
-      "password": "test123",
       "capacity": 14,
-      "createdAt": "2026-02-19T07:06:37.667Z"
+      "createdAt": "2026-02-19T07:06:37.667Z",
+      "passwordHash": "$2a$10$3dNMyd7XZgn.qCYCVkRt9uaiBH2WF1kyLjSbLkJkVExXM2u.wakzm"
+    },
+    {
+      "id": "eoqz2b",
+      "name": "ibrahim",
+      "role": "user",
+      "email": "ibrahim@gmailc.com",
+      "capacity": 14,
+      "createdAt": "2026-02-19T09:06:28.327Z",
+      "passwordHash": "$2a$10$.PPK.GriXO93fSos31O/F.ispZGqGj/WXpP5TE9a4nvNR6vPTlsFu"
+    },
+    {
+      "id": "abc1771492259",
+      "name": "Codex Test",
+      "role": "user",
+      "email": "codex_test2_1771492259@example.com",
+      "capacity": 14,
+      "createdAt": "2026-02-19T09:10:59.599Z",
+      "passwordHash": "$2a$10$nIbG4bxuq1w5rAvhjqogXOsGcH3MEa1XcQlXBAe4AGKZMfPJhFci6"
+    },
+    {
+      "id": "5liqriir",
+      "name": "ibrahim",
+      "email": "ibrahim@gmail.com",
+      "passwordHash": "$2a$10$ghHIYHmxX2Od607qmw1NBeT32k/SifwlQ3K6flIhT.YQHdhe4x0tO",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-19T09:51:57.145Z"
+    },
+    {
+      "id": "5vbyert6",
+      "name": "asmaa",
+      "email": "asmaa@gmail.com",
+      "passwordHash": "$2a$10$ga4mj7b.Ab9BR1X3BP.OleW94ICv9ZA46pxyM2gk9ueiHFBFaLF1S",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-19T10:39:39.845Z"
+    },
+    {
+      "id": "zele90xo",
+      "name": "walid",
+      "email": "walid@gmail.com",
+      "passwordHash": "$2a$10$7P09TQwCQ62ajjmXLELO5ubaIr8eyJEqiO3i.V3vOYxl0W51WwpfC",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-19T11:07:17.784Z"
+    },
+    {
+      "id": "9560dv4a",
+      "name": "ibrahim",
+      "email": "ibahim@gmail.com",
+      "passwordHash": "$2a$10$oIewqcys25LyUHyTL5HbWe3taC3iFXQ/H3MORP4CWTZHGlnPf2s26",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-19T11:18:07.525Z"
+    },
+    {
+      "id": "0db215aa-5dae-483d-8948-2cb95e47bc46",
+      "name": "API Test",
+      "email": "apitest_1771500291@example.com",
+      "passwordHash": "$2a$10$isV.ZUfpnEvLR6X/YQu7HOvN03aRypOxzpjHklCPX5ZPaxhTyQlG.",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-19T11:24:51.883Z"
+    },
+    {
+      "id": "fd03f7dc-5709-4073-a0f3-92fcd4c2b62c",
+      "name": "API Live Test",
+      "email": "apitest_live_1771500375@example.com",
+      "passwordHash": "$2a$10$J823xe1C70TpyFtlVvnEE.RDf1wqKtLxhKP/hS/T9hFgbyh.ZmvLS",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-19T11:26:15.442Z"
+    },
+    {
+      "id": "cv7vrt9h",
+      "name": "asmaa",
+      "email": "asmaa123@gmail.com",
+      "passwordHash": "$2a$10$GsTiStICTOTd629bNosGwOLV4KZJPFTJQU5RyjakTWokc/X2W5nBO",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-19T11:45:18.314Z"
     }
-  },
+  ],
   "clusters": {},
   "attendance": {},
   "vanLocations": {},
@@ -29,6 +110,46 @@
       "name": "asmaa",
       "arrived": false,
       "lastUpdated": "2026-02-19T07:11:21.792Z"
+    },
+    "5vbyert6": {
+      "id": "5vbyert6",
+      "lat": 33.620347367917546,
+      "lng": 35.431770919349724,
+      "name": "asmaa",
+      "arrived": false,
+      "lastUpdated": "2026-02-19T10:55:15.055Z"
+    },
+    "zele90xo": {
+      "id": "zele90xo",
+      "lat": 33.620320695238654,
+      "lng": 35.43175873930314,
+      "name": "walid",
+      "arrived": false,
+      "lastUpdated": "2026-02-19T11:17:38.273Z"
+    },
+    "9560dv4a": {
+      "id": "9560dv4a",
+      "lat": 33.6203565544476,
+      "lng": 35.43178051931644,
+      "name": "ibrahim",
+      "arrived": false,
+      "lastUpdated": "2026-02-19T11:20:35.255Z"
+    },
+    "5liqriir": {
+      "id": "5liqriir",
+      "lat": 33.62040934020323,
+      "lng": 35.431919736224415,
+      "name": "ibrahim",
+      "arrived": false,
+      "lastUpdated": "2026-02-19T11:44:15.261Z"
+    },
+    "cv7vrt9h": {
+      "id": "cv7vrt9h",
+      "lat": 33.6196038636014,
+      "lng": 35.43227849984612,
+      "name": "asmaa",
+      "arrived": false,
+      "lastUpdated": "2026-02-19T11:48:51.267Z"
     }
   },
   "reports": [

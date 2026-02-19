@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ClusterManager from './components/ClusterManager';
 import ReportModal from './components/ReportModal';
 import { useLanguage } from './context/LanguageContext';
@@ -20,6 +21,9 @@ declare global {
 }
 
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const openMapFromQuery = searchParams.get('view') === 'app';
   const { t, language, setLanguage, isRTL } = useLanguage();
   const mapRef = useRef<any>(null);
   const vanMarkerRef = useRef<any>(null);
@@ -36,6 +40,7 @@ export default function Home() {
 
   // UI State
   const [view, setView] = useState<'splash' | 'dashboard' | 'app'>('splash');
+  const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [studentPos, setStudentPos] = useState<{ lat: number; lng: number } | null>(null);
   const [vans, setVans] = useState<any[]>([]);
@@ -49,25 +54,50 @@ export default function Home() {
   const [hasNotifiedArrival, setHasNotifiedArrival] = useState(false);
 
   useEffect(() => {
-    // Splash Timeout
-    const timer = setTimeout(() => {
-      setView('dashboard');
-    }, 2500);
-
-    // Auth Check
     const savedUser = localStorage.getItem('tracker_user');
-    if (savedUser) {
-      const userData = JSON.parse(savedUser);
-      setUser(userData);
-      userRef.current = userData;
-      myIdRef.current = userData.id;
-    } else {
-      setUser({ role: 'guest', name: 'Guest Explorer' });
+
+    if (!savedUser) {
+      router.replace('/login');
+      return;
+    }
+
+    let userData: any = null;
+    try {
+      userData = JSON.parse(savedUser);
+    } catch {
+      localStorage.removeItem('tracker_user');
+      router.replace('/login');
+      return;
+    }
+
+    setUser(userData);
+    userRef.current = userData;
+    myIdRef.current = userData.id;
+    setAuthChecked(true);
+
+    const shouldOpenMap =
+      openMapFromQuery || sessionStorage.getItem('open_map_after_login') === '1';
+    if (shouldOpenMap) {
+      sessionStorage.removeItem('open_map_after_login');
+      setView('app');
+      if (openMapFromQuery) {
+        sessionStorage.setItem('open_map_after_login', '1');
+        router.replace('/');
+      }
+    }
+
+    // Splash Timeout
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (!shouldOpenMap) {
+      timer = setTimeout(() => {
+        setView('dashboard');
+      }, 2500);
     }
 
     // Geolocation Startup
+    let watchId: number | null = null;
     if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
+      watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setStudentPos(newPos);
@@ -79,8 +109,15 @@ export default function Home() {
       );
     }
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [router, openMapFromQuery]);
 
   // Map Initialization
   useEffect(() => {
@@ -245,6 +282,10 @@ export default function Home() {
     localStorage.removeItem('tracker_user');
     window.location.href = '/login';
   };
+
+  if (!authChecked) {
+    return null;
+  }
 
   if (view === 'splash') {
     return (

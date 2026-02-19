@@ -4,19 +4,52 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '../context/LanguageContext';
 
+type ProfileUser = {
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: 'user' | 'driver' | 'admin';
+    capacity?: number;
+};
+
 export default function Profile() {
     const router = useRouter();
     const { t, isRTL } = useLanguage();
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<ProfileUser | null>(null);
 
     useEffect(() => {
-        const savedUser = localStorage.getItem('tracker_user');
-        if (!savedUser) {
-            router.push('/login');
-            return;
-        }
-        setUser(JSON.parse(savedUser));
-    }, []);
+        const checkAuth = async () => {
+            const savedUser = localStorage.getItem('tracker_user');
+            const token = localStorage.getItem('token');
+
+            if (!savedUser || !token) {
+                router.push('/login');
+                return;
+            }
+
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+                const res = await fetch(`${apiUrl}/api/me`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+
+                if (!res.ok) {
+                    localStorage.removeItem('tracker_user');
+                    localStorage.removeItem('token');
+                    router.push('/login');
+                    return;
+                }
+
+                setUser(JSON.parse(savedUser));
+            } catch {
+                router.push('/login');
+            }
+        };
+
+        checkAuth();
+    }, [router]);
 
     if (!user) return null;
 
@@ -77,6 +110,7 @@ export default function Profile() {
                         <button
                             onClick={() => {
                                 localStorage.removeItem('tracker_user');
+                                localStorage.removeItem('token');
                                 router.push('/login');
                             }}
                             className="flex-1 py-6 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-black rounded-[2rem] transition-all border border-red-500/20 uppercase tracking-[0.2em] text-xs active:scale-95"
