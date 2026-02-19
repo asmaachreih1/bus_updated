@@ -54,7 +54,7 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen w-screen flex items-center justify-center bg-white relative overflow-hidden font-[family-name:var(--font-geist-sans)]">
+        <div className="min-h-screen w-screen flex items-center justify-center bg-white relative overflow-y-auto py-12 font-[family-name:var(--font-geist-sans)]">
             {/* Background Effects */}
             <div className="absolute top-0 left-0 w-full h-full bus-pattern opacity-5 pointer-events-none" />
             <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-amber-500/5 blur-[150px] rounded-full animate-mesh" />
