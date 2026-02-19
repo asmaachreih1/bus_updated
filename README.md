@@ -72,6 +72,29 @@ npm run dev
 
 ---
 
+## How to Push Changes
+
+To save and push your changes to the project:
+
+1. **Check status**:
+   ```bash
+   git status
+   ```
+
+2. **Stage and Commit**:
+   ```bash
+   git add .
+   git commit -m "Describe your changes here"
+   ```
+
+3. **Push to GitHub**:
+   ```bash
+   git push origin main
+   ```
+   *(Note: If your branch is `master`, use `git push origin master` instead.)*
+
+---
+
 ## Deployment Guide
 
 ### Backend (Render/Heroku/Railway)
