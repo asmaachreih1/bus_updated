@@ -1,0 +1,17 @@
+{
+  "users": {},
+  "clusters": {},
+  "attendance": {},
+  "vanLocations": {},
+  "memberLocations": {
+    "zvr1i": {
+      "id": "zvr1i",
+      "lat": 33.23905285269368,
+      "lng": 35.21380359153506,
+      "name": "Asmaa",
+      "arrived": false,
+      "lastUpdated": "2026-02-19T06:57:21.857Z"
+    }
+  },
+  "reports": []
+}

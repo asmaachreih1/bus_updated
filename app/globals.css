@@ -1,8 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
+  /* Logo-inspired Color Palette */
+  --amber: #f59e0b;
+  --amber-glow: rgba(245, 158, 11, 0.1);
+  --emerald: #10b981;
+  --emerald-glow: rgba(16, 185, 129, 0.1);
+  --blue: #2563eb;
+  --blue-glow: rgba(37, 99, 235, 0.1);
+
+  /* System Colors - Light Theme */
+  --background: #ffffff;
   --foreground: #0f172a;
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --card-border: rgba(0, 0, 0, 0.05);
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(0, 0, 0, 0.08);
 }
 
 body {
@@ -10,44 +23,75 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-.mesh-gradient {
-  background-color: #f8fafc;
-  background-image:
-    radial-gradient(at 0% 0%, hsla(214, 95%, 93%, 1) 0, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(37, 98%, 92%, 1) 0, transparent 50%);
+/* Glassmorphism Utilities */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
 }
 
-.bus-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2394a3b8' fill-opacity='0.1' fill-rule='evenodd'%3E%3Cpath d='M0 0h20L0 20z'/%3E%3C/g%3E%3C/svg%3E");
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
-@keyframes gradient-x {
-  0% {
-    background-position: 0% 50%;
+/* Premium Animations */
+@keyframes mesh-pulse {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
   }
 
   50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
+    opacity: 0.6;
+    transform: scale(1.05);
   }
 }
 
-.animate-gradient-x {
-  background-size: 200% 200%;
-  animation: gradient-x 3s ease infinite;
+.animate-mesh {
+  animation: mesh-pulse 8s ease-in-out infinite;
 }
 
-/* Custom scrollbar for sidebar (if needed) */
-aside::-webkit-scrollbar {
-  width: 4px;
+.mesh-gradient {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(at 0% 0%, hsla(214, 95%, 95%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(37, 98%, 95%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 100%, hsla(160, 95%, 95%, 1) 0, transparent 50%);
 }
 
-aside::-webkit-scrollbar-thumb {
+.bus-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03' fill-rule='evenodd'%3E%3Cpath d='M0 0h40L0 40z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* RTL Helpers */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

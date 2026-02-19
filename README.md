@@ -18,7 +18,7 @@ Coordinating bus pickups for training sessions can be stressful. Students often 
 - **Dynamic Presence**: Each student joins with their name and appears as a person icon.
 - **Smart ETA**: Uses Google Distance Matrix API for precise driving times.
 - **Auto-Cleanup**: Arrived students are intelligently removed from the waiting list.
-- **Glassmorphic UI**: A modern, dark-themed aesthetic with mesh gradients and micro-animations.
+- **Glassmorphic UI**: A modern, light-themed aesthetic with white backgrounds, clean typography, and micro-animations.
 
 ---
 

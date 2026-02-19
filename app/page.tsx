@@ -1,6 +1,17 @@
-'use client'; // Force Vercel rebuild
+'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import ClusterManager from './components/ClusterManager';
+import ReportModal from './components/ReportModal';
+import { useLanguage } from './context/LanguageContext';
+
+const LIGHT_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#f8fafc" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#f8fafc" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#64748b" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#e2e8f0" }] },
+];
 
 declare global {
   interface Window {
@@ -9,555 +20,543 @@ declare global {
 }
 
 export default function Home() {
+  const { t, language, setLanguage, isRTL } = useLanguage();
   const mapRef = useRef<any>(null);
   const vanMarkerRef = useRef<any>(null);
   const studentMarkerRef = useRef<any>(null);
-  const directionsServiceRef = useRef<any>(null);
   const directionsRendererRef = useRef<any>(null);
   const intervalRef = useRef<any>(null);
-
   const memberMarkersRef = useRef<{ [key: string]: any }>({});
   const myIdRef = useRef<string>('');
 
-  // REFS for Polling (Fixes Stale Closure)
+  // Refs for tracking
   const studentPosRef = useRef<{ lat: number; lng: number } | null>(null);
-  const isDriverRef = useRef(false);
-  const userNameRef = useRef('');
-  const lastRouteUpdateRef = useRef<number>(0);
+  const userRef = useRef<any>(null);
+  const isBroadcastingRef = useRef(false);
 
-  // State for UI
+  // UI State
+  const [view, setView] = useState<'splash' | 'dashboard' | 'app'>('splash');
+  const [user, setUser] = useState<any>(null);
   const [studentPos, setStudentPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
-  const [status, setStatus] = useState('Requesting location…');
-  const [memberEtas, setMemberEtas] = useState<{ [key: string]: string }>({});
+  const [vans, setVans] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
+  const [memberEtas, setMemberEtas] = useState<{ [key: string]: string }>({});
+  const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [userName, setUserName] = useState<string>('');
-  const [showNameModal, setShowNameModal] = useState(false);
-  const [isDriver, setIsDriver] = useState(false);
+  const [status, setStatus] = useState('Initializing Systems...');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [hasNotifiedArrival, setHasNotifiedArrival] = useState(false);
 
   useEffect(() => {
-    // Init ID
-    myIdRef.current = localStorage.getItem('bus_user_id') || Math.random().toString(36).substring(7);
-    localStorage.setItem('bus_user_id', myIdRef.current);
+    // Splash Timeout
+    const timer = setTimeout(() => {
+      setView('dashboard');
+    }, 2500);
 
-    // Init Driver Mode
-    const driverFlag = localStorage.getItem('is_driver');
-    if (driverFlag === 'true') {
-      setIsDriver(true);
-      isDriverRef.current = true;
-    }
-
-    // Init Name
-    const savedName = localStorage.getItem('bus_user_name');
-    if (savedName) {
-      setUserName(savedName);
-      userNameRef.current = savedName;
+    // Auth Check
+    const savedUser = localStorage.getItem('tracker_user');
+    if (savedUser) {
+      const userData = JSON.parse(savedUser);
+      setUser(userData);
+      userRef.current = userData;
+      myIdRef.current = userData.id;
     } else {
-      setShowNameModal(true);
-    }
-  }, []);
-
-  const handleSaveName = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (userName.trim()) {
-      const name = userName.trim();
-      localStorage.setItem('bus_user_name', name);
-      setUserName(name);
-      userNameRef.current = name;
-      setShowNameModal(false);
-    }
-  };
-
-  const stopDriving = () => {
-    localStorage.removeItem('is_driver');
-    setIsDriver(false);
-    isDriverRef.current = false;
-    window.location.reload();
-  };
-
-  /* 1️⃣ Student GPS */
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setStatus('Geolocation not supported');
-      return;
+      setUser({ role: 'guest', name: 'Guest Explorer' });
     }
 
-    const watchPos = () => {
+    // Geolocation Startup
+    if (navigator.geolocation) {
       navigator.geolocation.watchPosition(
         (pos) => {
-          const newPos = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          };
-
-          // Update State AND Ref
+          const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setStudentPos(newPos);
           studentPosRef.current = newPos;
-
-          setStatus(isDriverRef.current ? 'Broadcasting Bus Location' : 'Live location enabled');
+          setStatus('Live Tracking Ready');
         },
-        () => setStatus('Location permission denied'),
+        () => setStatus('GPS Offline'),
         { enableHighAccuracy: true }
       );
-    };
+    }
 
-    watchPos();
+    return () => clearTimeout(timer);
   }, []);
 
-  /* 2️⃣ Init map ONCE */
+  // Map Initialization
   useEffect(() => {
-    if (!studentPos || mapRef.current || !window.google?.maps) return;
+    if (view !== 'app' || !studentPos || mapRef.current || !window.google?.maps) return;
 
-    const initMap = async () => {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        // Initial fetch to get world state
-        const res = await fetch(`${apiUrl}/api/vans`);
-        const data = await res.json();
+    mapRef.current = new window.google.maps.Map(document.getElementById('map'), {
+      center: studentPos,
+      zoom: 15,
+      disableDefaultUI: true,
+      styles: LIGHT_MAP_STYLE,
+    });
 
-        mapRef.current = new window.google.maps.Map(
-          document.getElementById('map'),
-          {
-            center: studentPos,
-            zoom: 15,
-            minZoom: 9,
-            disableDefaultUI: true,
-            zoomControl: false,
-            mapTypeId: 'roadmap',
-            restriction: {
-              latLngBounds: {
-                north: 34.0,
-                south: 33.0,
-                west: 35.0,
-                east: 36.0,
-              },
-              strictBounds: false,
-            },
-            styles: []
-          }
-        );
+    directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+      map: mapRef.current,
+      suppressMarkers: true,
+      polylineOptions: { strokeColor: '#2563EB', strokeWeight: 6, strokeOpacity: 0.8 }
+    });
 
-        // Add DirectionsRenderer for the blue route line
-        directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
-          map: mapRef.current,
-          suppressMarkers: true, // We have our own custom markers
-          preserveViewport: true, // Don't auto-zoom wildly
-          polylineOptions: {
-            strokeColor: '#2563EB', // Blue line
-            strokeWeight: 5,
-            strokeOpacity: 0.6
-          }
-        });
+    startPolling();
+  }, [studentPos, view]);
 
-        vanMarkerRef.current = new window.google.maps.Marker({
-          map: mapRef.current,
-          title: 'Bus',
-          icon: {
-            path: 'M20,12H4V4H20V12M22,2H2V16H4V22H6V16H18V22H20V16H22V2M18,11H16V6H18V11M14,11H6V6H14V11Z',
-            fillColor: '#F59E0B',
-            fillOpacity: 1,
-            strokeColor: '#000',
-            strokeWeight: 1,
-            scale: 1.5,
-            anchor: new window.google.maps.Point(12, 12)
-          }
-        });
-
-        directionsServiceRef.current = new window.google.maps.DirectionsService();
-        startPolling();
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    initMap();
-  }, [studentPos]);
-
-  /* 3️⃣ Poll backend */
   const startPolling = () => {
-    const distanceMatrixService = new window.google.maps.DistanceMatrixService();
-
-    // Clear existing interval if any
     if (intervalRef.current) clearInterval(intervalRef.current);
+    const dms = new window.google.maps.DistanceMatrixService();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
     intervalRef.current = setInterval(async () => {
-      // Use REF to get latest position inside interval
-      const currentPos = studentPosRef.current;
-      if (!currentPos) return;
+      const pos = studentPosRef.current;
+      if (!pos) return;
 
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        const currentlyDriving = isDriverRef.current;
-
-        if (currentlyDriving) {
-          // I AM THE BUS
+        // 1. Update own status if not guest
+        if (userRef.current?.role === 'driver') {
           await fetch(`${apiUrl}/api/update-location`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              van_id: 1,
-              lat: currentPos.lat,
-              lng: currentPos.lng
-            })
+            body: JSON.stringify({ van_id: myIdRef.current, ...pos, isDriving: isBroadcastingRef.current })
           });
-        } else {
-          // I AM A STUDENT
+        } else if (userRef.current?.role === 'user') {
           await fetch(`${apiUrl}/api/update-member`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: myIdRef.current,
-              lat: currentPos.lat,
-              lng: currentPos.lng,
-              name: userNameRef.current || 'Someone' // Use Ref name
-            })
+            body: JSON.stringify({ id: myIdRef.current, ...pos, name: userRef.current.name })
           });
         }
 
-        // Get everyone
+        // 2. Fetch World State
         const res = await fetch(`${apiUrl}/api/vans`);
         const data = await res.json();
+        const activeVansList = data.vans || [];
+        const activeMembersList = (data.members || []).filter((m: any) => !m.arrived);
 
-        const vans = data.vans || [];
-        const allMembers = data.members || [];
+        setVans(activeVansList);
+        setMembers(activeMembersList);
 
-        // Filter out members who have arrived
-        const currentMembers = allMembers.filter((m: any) => !m.arrived);
-        setMembers(currentMembers);
+        if (view === 'app') {
+          // Geofencing Check for Passenger
+          if (userRef.current?.role === 'user' && activeVansList.length > 0) {
+            const van = activeVansList[0];
+            dms.getDistanceMatrix({
+              origins: [{ lat: van.lat, lng: van.lng }],
+              destinations: [pos],
+              travelMode: 'DRIVING',
+            }, async (response: any, status: string) => {
+              if (status === 'OK') {
+                const el = response.rows[0].elements[0];
+                if (el.status === 'OK') {
+                  const seconds = el.duration.value;
+                  setEtaSeconds(seconds);
 
-        if (vans.length > 0) {
-          const van = vans[0];
-          const vanLoc = { lat: van.lat, lng: van.lng };
-
-          if (!vanMarkerRef.current && mapRef.current) {
-            vanMarkerRef.current = new window.google.maps.Marker({
-              map: mapRef.current,
-              title: 'Bus',
-              icon: {
-                path: 'M20,12H4V4H20V12M22,2H2V16H4V22H6V16H18V22H20V16H22V2M18,11H16V6H18V11M14,11H6V6H14V11Z',
-                fillColor: '#F59E0B',
-                fillOpacity: 1,
-                strokeColor: '#000',
-                strokeWeight: 1,
-                scale: 1.5,
-                anchor: new window.google.maps.Point(12, 12)
-              }
-            });
-          }
-          if (vanMarkerRef.current) {
-            vanMarkerRef.current.setPosition(vanLoc);
-          }
-
-          // 🆕 DRAW ROUTE if Not Driver (Throttled: 10s)
-          if (!currentlyDriving && directionsServiceRef.current && directionsRendererRef.current) {
-            const now = Date.now();
-            if (now - lastRouteUpdateRef.current > 10000) { // Update route max every 10s
-              lastRouteUpdateRef.current = now;
-
-              directionsServiceRef.current.route(
-                {
-                  origin: vanLoc,
-                  destination: currentPos,
-                  travelMode: window.google.maps.TravelMode.DRIVING,
-                },
-                (result: any, status: string) => {
-                  if (status === 'OK') {
-                    directionsRendererRef.current.setDirections(result);
+                  // AUTO-ARRIVAL (1 min)
+                  if (seconds < 60 && !hasNotifiedArrival) {
+                    await fetch(`${apiUrl}/api/update-member`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: myIdRef.current, ...pos, arrived: true })
+                    });
+                    setHasNotifiedArrival(true);
+                    setStatus('Arrived - Welcome Aboard');
                   }
                 }
-              );
-            }
-          }
-
-          // Calculate ETAs for WAITING members
-          // If I am driving, I don't need distance to myself (though I am the bus)
-          // But I might want to see distance to members.
-          // Currently loop calculates distance FROM bus TO members.
-          const waitingDestinations = currentMembers.map((m: any) => ({ lat: m.lat, lng: m.lng }));
-
-          if (waitingDestinations.length > 0) {
-            distanceMatrixService.getDistanceMatrix(
-              {
-                origins: [{ lat: van.lat, lng: van.lng }],
-                destinations: waitingDestinations,
-                travelMode: window.google.maps.TravelMode.DRIVING,
-              },
-              async (response: any, status: string) => {
-                if (status === 'OK' && response.rows[0].elements) {
-                  const newEtas: { [key: string]: string } = {};
-                  const arrivalPromises: Promise<any>[] = [];
-
-                  response.rows[0].elements.forEach((element: any, idx: number) => {
-                    const member = currentMembers[idx];
-                    if (element.status === 'OK') {
-                      const seconds = element.duration.value;
-                      newEtas[member.id] = element.duration.text;
-
-                      // MARK AS ARRIVED if within 60 seconds
-                      if (seconds <= 60) {
-                        arrivalPromises.push(
-                          fetch(`${apiUrl}/api/mark-arrived`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: member.id })
-                          })
-                        );
-                      }
-
-                      if (member.id === myIdRef.current) {
-                        setEtaSeconds(seconds);
-                      }
-                    }
-                  });
-                  setMemberEtas(newEtas);
-                  if (arrivalPromises.length > 0) await Promise.all(arrivalPromises);
-                }
-              }
-            );
-          }
-        }
-
-        // 2. Update/Cleanup Member Markers
-        // Remove markers for members who arrived or left
-        Object.keys(memberMarkersRef.current).forEach(id => {
-          if (!currentMembers.find((m: any) => m.id === id) || id === myIdRef.current) {
-            if (memberMarkersRef.current[id]) {
-              memberMarkersRef.current[id].setMap(null);
-              delete memberMarkersRef.current[id];
-            }
-          }
-        });
-
-        currentMembers.forEach((m: any) => {
-          if (m.id === myIdRef.current) return;
-
-          if (!memberMarkersRef.current[m.id]) {
-            memberMarkersRef.current[m.id] = new window.google.maps.Marker({
-              map: mapRef.current,
-              title: m.name,
-              icon: {
-                path: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
-                fillColor: '#10B981', // Emerald for Friends
-                fillOpacity: 0.9,
-                strokeColor: '#fff',
-                strokeWeight: 1.5,
-                scale: 1.3,
-                anchor: new window.google.maps.Point(12, 12)
               }
             });
           }
-          memberMarkersRef.current[m.id].setPosition({ lat: m.lat, lng: m.lng });
-        });
 
-        // 3. Update "You" Marker
-        if (!currentlyDriving) {
-          if (!studentMarkerRef.current && mapRef.current) {
-            studentMarkerRef.current = new window.google.maps.Marker({
-              map: mapRef.current,
-              title: 'You',
-              icon: {
-                path: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
-                fillColor: '#2563EB', // Blue for You
-                fillOpacity: 1,
-                strokeColor: '#fff',
-                strokeWeight: 2,
-                scale: 1.5,
-                anchor: new window.google.maps.Point(12, 12)
-              }
-            });
-          }
-          if (studentMarkerRef.current) {
-            studentMarkerRef.current.setPosition(currentPos);
-          }
-        } else {
-          if (studentMarkerRef.current) {
-            studentMarkerRef.current.setMap(null);
-            studentMarkerRef.current = null;
+          // 3. Update Markers
+          updateMapMarkers(activeVansList, activeMembersList);
+
+          // 4. Calculate ETAs (for drivers to see all members)
+          if (activeVansList.length > 0 && activeMembersList.length > 0 && userRef.current?.role === 'driver') {
+            calculateETAs(dms, activeVansList[0], activeMembersList);
           }
         }
 
-      } catch (e) {
-        console.error("Fetch error", e);
+      } catch (err) {
+        console.error("Poll error", err);
       }
     }, 4000);
   };
 
-  return (
-    <div className="flex flex-col lg:flex-row h-screen w-screen bg-slate-50 text-slate-900 font-[family-name:var(--font-geist-sans)] overflow-hidden">
-      {/* Mobile Header / Overlay Toggle */}
-      <button
-        onClick={() => setIsSidebarOpen(true)}
-        className="lg:hidden fixed top-6 left-6 z-20 p-4 bg-white rounded-2xl shadow-xl shadow-slate-200 border border-slate-100 flex items-center justify-center active:scale-90 transition-transform"
-      >
-        <span className="text-xl">📊</span>
-      </button>
+  const updateMapMarkers = (vansData: any[], membersData: any[]) => {
+    if (!mapRef.current) return;
+    // Van Marker
+    if (vansData.length > 0) {
+      const van = vansData[0];
+      if (!vanMarkerRef.current) {
+        vanMarkerRef.current = new window.google.maps.Marker({
+          map: mapRef.current,
+          icon: {
+            path: 'M20,12H4V4H20V12M22,2H2V16H4V22H6V16H18V22H20V16H22V2M18,11H16V6H18V11M14,11H6V6H14V11Z',
+            fillColor: van.isDriving ? '#10B981' : '#F59E0B',
+            fillOpacity: 1,
+            strokeWeight: 0,
+            scale: 1.8,
+            anchor: new window.google.maps.Point(12, 12)
+          }
+        });
+      }
+      vanMarkerRef.current.setPosition({ lat: van.lat, lng: van.lng });
+    }
 
-      {/* Sidebar Overlay for Mobile */}
-      {isSidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-30 transition-opacity"
-          onClick={() => setIsSidebarOpen(false)}
-        />
+    // "You" Marker (if logged in)
+    if (userRef.current?.role === 'user' && studentPosRef.current) {
+      if (!studentMarkerRef.current) {
+        studentMarkerRef.current = new window.google.maps.Marker({
+          map: mapRef.current,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            fillColor: '#2563EB',
+            fillOpacity: 1,
+            strokeColor: '#FFF',
+            strokeWeight: 4,
+            scale: 10
+          }
+        });
+      }
+      studentMarkerRef.current.setPosition(studentPosRef.current);
+    }
+  };
+
+  const calculateETAs = (dms: any, van: any, membersList: any[]) => {
+    dms.getDistanceMatrix({
+      origins: [{ lat: van.lat, lng: van.lng }],
+      destinations: membersList.map(m => ({ lat: m.lat, lng: m.lng })),
+      travelMode: 'DRIVING',
+    }, (response: any, status: string) => {
+      if (status === 'OK') {
+        const etas: { [key: string]: string } = {};
+        response.rows[0].elements.forEach((el: any, i: number) => {
+          if (el.status === 'OK') {
+            const member = membersList[i];
+            etas[member.id] = el.duration.text;
+            if (member.id === myIdRef.current) setEtaSeconds(el.duration.value);
+          }
+        });
+        setMemberEtas(etas);
+      }
+    });
+  };
+
+  const logout = () => {
+    localStorage.removeItem('tracker_user');
+    window.location.href = '/login';
+  };
+
+  if (view === 'splash') {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-white overflow-hidden">
+        <div className="relative flex flex-col items-center">
+          <div className="w-32 h-32 md:w-48 md:h-48 glass p-2 rounded-full border-slate-200 animate-pulse shadow-[0_0_80px_rgba(37,99,235,0.1)]">
+            <img src="/logooo.jpeg" alt="Logo" className="w-full h-full object-contain rounded-full" />
+          </div>
+          <h1 className="mt-8 text-4xl md:text-6xl font-black tracking-tighter text-slate-900 animate-in slide-in-from-bottom-8 fade-in duration-1000">TRACKER</h1>
+          <div className="mt-4 flex gap-1">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: `${i * 0.2}s` }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'dashboard') {
+    return (
+      <div className="flex flex-col h-screen w-screen bg-white text-slate-800 overflow-y-auto p-6 md:p-12 font-[family-name:var(--font-geist-sans)]">
+        <header className="flex items-center justify-between mb-12">
+          <div className="flex items-center gap-4">
+            <img src="/logooo.jpeg" alt="Logo" className="w-12 h-12 object-contain" />
+            <h1 className="text-2xl font-black tracking-tighter text-slate-900">TRACKER</h1>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+              className="glass px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-slate-200 text-slate-800"
+            >
+              {language === 'en' ? 'AR' : 'EN'}
+            </button>
+          </div>
+        </header>
+
+        <main className="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-center">
+          <div className="mb-12">
+            <h2 className="text-4xl md:text-6xl font-black text-slate-900 mb-4 tracking-tighter">
+              {t('common.welcome')}
+            </h2>
+            <p className="text-slate-500 font-bold max-w-xl text-lg">
+              {t('main.discovery_desc')}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Passenger Card */}
+            <button
+              onClick={() => setView('app')}
+              className="group relative glass p-10 rounded-[3rem] border-slate-100 hover:border-blue-500/30 shadow-xl shadow-slate-200/50 transition-all duration-500 text-left overflow-hidden h-[400px] flex flex-col"
+            >
+              <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/5 blur-3xl rounded-full" />
+              <div className="text-5xl mb-8 bg-blue-500/5 w-20 h-20 flex items-center justify-center rounded-3xl group-hover:scale-110 transition-transform">👤</div>
+              <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">{t('auth.role_user')}</h3>
+              <p className="text-slate-500 font-bold mb-auto">{t('main.discovery_desc')}</p>
+              <div className="flex items-center gap-2 text-blue-600 font-black uppercase tracking-widest text-xs mt-8">
+                {t('common.dashboard')} <span className="group-hover:translate-x-2 transition-transform">➔</span>
+              </div>
+            </button>
+
+            {/* Driver Card */}
+            <button
+              onClick={() => window.location.href = '/login'}
+              className="group relative glass p-10 rounded-[3rem] border-slate-100 hover:border-amber-500/30 shadow-xl shadow-slate-200/50 transition-all duration-500 text-left overflow-hidden h-[400px] flex flex-col"
+            >
+              <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/5 blur-3xl rounded-full" />
+              <div className="text-5xl mb-8 bg-amber-500/5 w-20 h-20 flex items-center justify-center rounded-3xl group-hover:scale-110 transition-transform">🚐</div>
+              <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">{t('auth.role_driver')}</h3>
+              <p className="text-slate-500 font-bold mb-auto">{t('auth.subtitle_login')}</p>
+              <div className="flex items-center gap-2 text-amber-600 font-black uppercase tracking-widest text-xs mt-8">
+                {t('auth.btn_login')} <span className="group-hover:translate-x-2 transition-transform">➔</span>
+              </div>
+            </button>
+
+            {/* Admin Card */}
+            <button
+              onClick={() => window.location.href = '/admin'}
+              className="group relative glass p-10 rounded-[3rem] border-slate-100 hover:border-emerald-500/30 shadow-xl shadow-slate-200/50 transition-all duration-500 text-left overflow-hidden h-[400px] flex flex-col"
+            >
+              <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 blur-3xl rounded-full" />
+              <div className="text-5xl mb-8 bg-emerald-500/5 w-20 h-20 flex items-center justify-center rounded-3xl group-hover:scale-110 transition-transform">🛡️</div>
+              <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">{t('admin.control_center')}</h3>
+              <p className="text-slate-500 font-bold mb-auto">{t('admin.systems_overview')}</p>
+              <div className="flex items-center gap-2 text-emerald-600 font-black uppercase tracking-widest text-xs mt-8">
+                {t('admin.manage_users')} <span className="group-hover:translate-x-2 transition-transform">➔</span>
+              </div>
+            </button>
+          </div>
+        </main>
+
+        <footer className="mt-12 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+          Powered by Tracker Infrastructure • 2026
+        </footer>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex h-screen w-screen bg-white text-slate-800 font-[family-name:var(--font-geist-sans)] overflow-hidden ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+
+      {/* Proximity Alert Overlay */}
+      {user?.role === 'user' && etaSeconds !== null && etaSeconds < 120 && etaSeconds >= 60 && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className={`glass p-6 rounded-[2rem] border-emerald-500/30 bg-emerald-500/10 backdrop-blur-xl shadow-[0_0_50px_rgba(16,185,129,0.2)] flex items-center gap-6 ${isRTL ? 'flex-row-reverse text-right' : 'text-left'}`}>
+            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center text-3xl animate-pulse shadow-lg shadow-emerald-500/40">🚐</div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black uppercase text-emerald-500 tracking-[0.2em] mb-1">{t('reports.get_ready')}</p>
+              <p className="text-lg font-black text-white leading-tight">{t('reports.nearly_here')}</p>
+            </div>
+            <button onClick={() => setEtaSeconds(null)} className="text-slate-500 hover:text-white transition-all">✕</button>
+          </div>
+        </div>
       )}
+      {/* Sidebar Overlay (Mobile) */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className={`lg:hidden fixed top-6 ${isRTL ? 'right-6' : 'left-6'} z-50 glass p-5 rounded-3xl shadow-2xl active:scale-90 transition-all border-white/5`}
+      >
+        <span className="text-2xl">{isSidebarOpen ? '✕' : '📊'}</span>
+      </button>
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-80 mesh-gradient border-r border-slate-200 flex flex-col px-6 py-8 shadow-2xl transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-sm
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-40 w-[24rem] glass-card border-r-0 flex flex-col px-8 py-12 transition-transform duration-500 ease-in-out lg:relative lg:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : (isRTL ? 'translate-x-[100%]' : '-translate-x-full')}
       `}>
-        <div className="absolute inset-0 bus-pattern opacity-40 pointer-events-none" />
-
-        <div className="flex items-center justify-between mb-10 relative z-10">
-          <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-2xl shadow-xl shadow-slate-200 border border-slate-100 flex items-center justify-center ${isDriver ? 'bg-amber-100' : 'bg-white'}`}>
-              <span className="text-2xl drop-shadow-sm">🚌</span>
+        <div className="flex items-center justify-between mb-12">
+          <div className="flex items-center gap-5">
+            <div className="p-1 glass rounded-2xl shadow-xl border-white/10">
+              <img src="/logooo.jpeg" alt="Logo" className="w-14 h-14 object-contain drop-shadow-lg rounded-xl" />
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none mb-1">Bus Tracker</h1>
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${isDriver ? 'text-amber-600' : 'text-slate-400'}`}>
-                {isDriver ? 'DRIVER MODE ACTIVE' : 'Training Group'}
-              </p>
+              <h1 className="text-3xl font-black tracking-tighter text-white">TRACKER</h1>
+              <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${user?.role === 'driver' ? 'text-amber-500' : 'text-blue-500'}`}>
+                {t(`auth.role_${user?.role || 'user'}`)} {t('main.session_type')}
+              </span>
             </div>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-slate-600 active:scale-95">
-            <span className="text-xl">✕</span>
+          <button onClick={() => setView('dashboard')} className="p-3 text-slate-500 hover:text-white transition-colors bg-white/5 rounded-2xl">
+            <span className={`text-2xl ${isRTL ? 'rotate-180' : ''}`}>🏠</span>
           </button>
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1.5">System Status</p>
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${status.includes('enabled') || status.includes('Broadcasting') ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-              <p className="text-sm font-semibold text-slate-700">{status}</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50">
-            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-4">Estimated Arrival</p>
-            <div className="flex flex-col gap-1">
-              <span className="text-5xl font-black text-slate-900 tabular-nums">
-                {etaSeconds === null ? '--' : etaSeconds <= 60 ? '0' : Math.ceil(etaSeconds / 60)}
-                <span className="text-base font-bold text-slate-400 ml-2">min</span>
-              </span>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-500">
-                  {isDriver ? 'You are driving 🚌' : etaSeconds === null ? 'Locating bus...' : etaSeconds <= 60 ? '🚌 Bus arrived' : 'Bus is on the way'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Member List */}
-        <div className="mt-8 relative z-10 flex-1 overflow-y-auto custom-scrollbar pr-1">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-4">Friends & Arrivals</p>
-          <div className="space-y-3 pb-6">
-            {members.map((m) => {
-              const isMe = m.id === myIdRef.current;
-              if (isMe && isDriver) return null; // Don't show myself in the list if I am driving
-
-              return (
-                <div key={m.id} className={`flex items-center gap-3 p-3 backdrop-blur rounded-2xl border transition-all group ${isMe ? 'bg-blue-50/50 border-blue-100 shadow-sm' : 'bg-white/50 border-slate-100 hover:border-amber-200'}`}>
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner group-hover:scale-110 transition-transform font-bold ${isMe ? 'bg-blue-100 text-blue-600' : 'bg-emerald-50 text-slate-700'}`}>
-                    <span className="text-sm">{isMe ? '👤' : 'M'}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-bold truncate ${isMe ? 'text-blue-900' : 'text-slate-800'}`}>
-                      {m.name || 'Friend'} {isMe && <span className="text-[10px] font-medium text-blue-500">(You)</span>}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-medium truncate">
-                      {isMe ? 'Sharing location...' : 'Waiting location'}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-[10px] font-black tabular-nums ${isMe ? 'text-blue-600' : 'text-amber-500'}`}>
-                      {memberEtas[m.id] || '---'}
-                    </p>
-                    <div className="flex justify-end mt-1">
-                      <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isMe ? 'bg-blue-400' : 'bg-emerald-400'}`} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {members.length === 0 && (
-              <p className="text-[11px] text-slate-400 italic text-center py-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                Waiting for friends...
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-6">
-          {isDriver && (
+        {/* Language Switcher in Sidebar */}
+        <div className="mb-8">
+          <div className="grid grid-cols-2 glass p-1 rounded-2xl border-white/5">
             <button
-              onClick={stopDriving}
-              className="flex items-center justify-center gap-2 w-full py-4 bg-red-500 hover:bg-red-600 text-white text-xs font-black rounded-[1.5rem] transition-all shadow-xl shadow-red-500/20 active:scale-95 uppercase tracking-wide"
+              onClick={() => setLanguage('en')}
+              className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${language === 'en' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white'}`}
             >
-              STOP DRIVING
+              English
             </button>
+            <button
+              onClick={() => setLanguage('ar')}
+              className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${language === 'ar' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white'}`}
+            >
+              العربية
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic Role Content */}
+        <div className="flex-1 overflow-y-auto space-y-8 pr-1 custom-scrollbar">
+          {user?.role === 'guest' ? (
+            <div className="space-y-6">
+              <div className="glass p-8 rounded-[2.5rem] border-white/5">
+                <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest mb-4">Discovery</p>
+                <h2 className="text-xl font-black text-white mb-2">{t('main.available_vehicles')}</h2>
+                <p className="text-xs text-slate-500 font-bold leading-relaxed mb-6">{t('main.discovery_desc')}</p>
+
+                <div className="space-y-3">
+                  {vans.map(v => (
+                    <div key={v.id} className="glass p-5 rounded-2xl flex items-center justify-between group border-white/5 hover:border-amber-500/30 transition-all">
+                      <div className="flex items-center gap-4">
+                        <span className="text-2xl bg-amber-500/10 p-3 rounded-xl">🚌</span>
+                        <div>
+                          <p className="text-sm font-black text-white">Fleet {v.id.slice(0, 3)}</p>
+                          <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">
+                            • {v.isDriving ? t('main.operational') : t('main.resting')}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-slate-600 group-hover:text-amber-500 transition-colors ${isRTL ? 'rotate-180' : ''}`}>➔</span>
+                    </div>
+                  ))}
+                  {vans.length === 0 && <p className="text-[10px] font-black text-slate-600 text-center uppercase tracking-widest p-10">{t('common.offline')}</p>}
+                </div>
+              </div>
+              <button
+                onClick={() => window.location.href = '/login'}
+                className="w-full py-6 glass bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 font-black rounded-3xl transition-all border-blue-500/20 uppercase tracking-widest text-xs"
+              >
+                {t('main.full_access_cta')}
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Active Tracking Card */}
+              <div className={`glass-card p-8 rounded-[3rem] border-white/5 relative overflow-hidden group transition-all duration-500 ${etaSeconds !== null && etaSeconds < 120 ? 'border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)]' : ''}`}>
+                <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl -translate-y-1/2 translate-x-1/2 ${etaSeconds !== null && etaSeconds < 120 ? 'bg-emerald-500/20' : 'bg-blue-500/10'}`} />
+                <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest mb-4">{t('main.arrival_status')}</p>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className={`text-6xl font-black tracking-tighter tabular-nums transition-colors ${etaSeconds !== null && etaSeconds < 120 ? 'text-emerald-500' : 'text-white'}`}>
+                    {etaSeconds === null ? '--' : Math.ceil(etaSeconds / 60)}
+                  </span>
+                  <span className={`text-xl font-black uppercase tracking-widest transition-colors ${etaSeconds !== null && etaSeconds < 120 ? 'text-emerald-500' : 'text-blue-500'}`}>{t('main.min')}</span>
+                </div>
+                <p className="text-xs font-bold text-slate-400">
+                  {user?.role === 'driver' ? t('main.pickup_desc') : t('main.distance_desc')}
+                </p>
+              </div>
+
+              {/* Members/Waiting List */}
+              <div className="space-y-5">
+                <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-4">{t('main.waiting_near')}</p>
+                <div className="space-y-3">
+                  {members.map(m => (
+                    <div key={m.id} className="glass p-5 rounded-[2rem] flex items-center gap-4 border-white/5 hover:border-blue-500/20 transition-all">
+                      <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-2xl font-black overflow-hidden relative group">
+                        <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        👤
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-black text-slate-900">{m.name}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{memberEtas[m.id] || t('common.loading')}</p>
+                      </div>
+                      <div className={`w-3 h-3 rounded-full ${memberEtas[m.id] ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`} />
+                    </div>
+                  ))}
+                  {members.length === 0 && <p className="text-center py-10 text-slate-600 font-bold text-xs italic glass rounded-3xl border-dashed border-white/5">{t('main.scanning')}</p>}
+                </div>
+              </div>
+            </>
           )}
         </div>
 
-        <div className="mt-6 lg:mt-auto">
-          <div className={`p-4 rounded-2xl border ${isDriver ? 'bg-amber-50 border-amber-100' : 'bg-blue-50/50 border-blue-100'}`}>
-            <p className={`text-[10px] leading-relaxed font-bold ${isDriver ? 'text-amber-600' : 'text-blue-600/70'}`}>
-              {isDriver ? 'You are broadcasting the bus location.' : 'Sharing live location with friends.'}
-            </p>
+        {/* Controls */}
+        <div className="mt-10 space-y-4">
+          {user?.role === 'driver' && (
+            <button
+              onClick={() => {
+                setIsBroadcasting(!isBroadcasting);
+                isBroadcastingRef.current = !isBroadcasting;
+              }}
+              className={`w-full py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 ${isBroadcasting ? 'bg-red-500/10 border border-red-500/50 text-red-500' : 'bg-emerald-600 shadow-emerald-500/20 text-white'}`}
+            >
+              {isBroadcasting ? t('main.stop_session') : t('main.start_session')}
+            </button>
+          )}
+          <div className="flex gap-4">
+            <button
+              onClick={() => setIsReportModalOpen(true)}
+              className="flex-1 py-5 glass rounded-[2rem] font-bold text-[10px] uppercase tracking-widest text-slate-400 hover:text-white transition-all border-white/5"
+            >
+              {t('common.support')}
+            </button>
+            <button
+              onClick={logout}
+              className="flex-1 py-5 glass rounded-[2rem] font-bold text-[10px] uppercase tracking-widest text-slate-400 hover:text-white transition-all border-white/5"
+            >
+              {t('common.logout')}
+            </button>
           </div>
         </div>
       </aside>
 
-      <main className="flex-1 relative bg-slate-100 p-2 lg:p-4">
-        <div id="map" className="w-full h-full rounded-[1.5rem] lg:rounded-[2rem] shadow-2xl shadow-slate-200 border border-white overflow-hidden" />
+      {/* Main Map Container */}
+      <main className="flex-1 relative p-2 md:p-6 bg-slate-50">
+        <div id="map" className="w-full h-full rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/5 overflow-hidden" />
 
-        {/* Floating current location button (Mobile) */}
-        {!isSidebarOpen && (
+        {/* Map Overlays */}
+        <div className={`absolute top-10 ${isRTL ? 'left-10' : 'right-10'} z-10 flex flex-col gap-3`}>
           <button
             onClick={() => mapRef.current?.setCenter(studentPos)}
-            className="lg:hidden absolute bottom-8 right-8 p-4 bg-white rounded-full shadow-2xl border border-slate-100 active:scale-90 transition-transform z-10"
+            className="p-5 glass rounded-2xl shadow-2xl text-white hover:bg-white/10 transition-all border-white/10"
           >
-            <span className="text-xl">🎯</span>
+            🎯
           </button>
+          <button
+            onClick={() => setView('dashboard')}
+            className="lg:hidden p-5 glass rounded-2xl shadow-2xl text-white hover:bg-white/10 transition-all border-white/10"
+          >
+            🏠
+          </button>
+        </div>
+
+        {status && (
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10">
+            <div className="glass px-6 py-3 rounded-2xl border-white/5 shadow-2xl flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{status}</span>
+            </div>
+          </div>
         )}
       </main>
 
-      {/* Name Capture Modal (Only if not driving, usually) */}
-      {showNameModal && !isDriver && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md">
-          <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl border border-white relative overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="absolute inset-0 bus-pattern opacity-10 pointer-events-none" />
-
-            <div className="relative z-10">
-              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-3xl mb-6 shadow-inner mx-auto">
-                👋
-              </div>
-              <h2 className="text-2xl font-black text-slate-900 text-center mb-2">Welcome!</h2>
-              <p className="text-sm text-slate-500 text-center mb-8">What should your friends call you on the map?</p>
-
-              <form onSubmit={handleSaveName} className="space-y-4">
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="Enter your name"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 text-slate-900 font-bold placeholder:text-slate-300 transition-all"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="w-full py-4 bg-slate-900 hover:bg-black text-white font-black rounded-2xl shadow-xl shadow-slate-900/10 transition-all active:scale-95 uppercase tracking-wide text-xs"
-                >
-                  Join Training Group
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+          background: rgba(255, 255, 255, 0.05); 
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.1); }
+      `}</style>
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        user={user}
+      />
     </div>
   );
 }
