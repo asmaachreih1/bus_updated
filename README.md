@@ -33,8 +33,8 @@ Coordinating bus pickups for training sessions can be stressful. Students often 
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/asmaachreih1/bus.git
-cd bus
+git clone https://github.com/asmaachreih1/bus_updated.git
+cd bus_updated
 ```
 
 ### 2. Install dependencies
