@@ -70,49 +70,49 @@ export default function Login() {
                 </button>
             </div>
 
-            <div className="w-full max-w-xl p-6 relative z-10">
-                <div className="glass-card rounded-[3.5rem] p-10 md:p-16 border-slate-100 bg-white/80 shadow-2xl shadow-slate-200/50">
-                    <div className="text-center mb-12">
-                        <div className="relative inline-block mb-8">
-                            <div className="absolute inset-0 bg-amber-500/10 blur-2xl rounded-full scale-150 animate-pulse" />
+            <div className="w-full max-w-md p-6 relative z-10">
+                <div className="glass-card rounded-[2.5rem] p-8 md:p-10 border-slate-100 bg-white/90 shadow-2xl shadow-slate-200/40">
+                    <div className="text-center mb-10">
+                        <div className="relative inline-block mb-6">
+                            <div className="absolute inset-0 bg-blue-500/5 blur-2xl rounded-full scale-150 animate-pulse" />
                             <img
                                 src="/logooo.jpeg"
                                 alt="Logo"
-                                className="w-24 h-24 mx-auto object-contain relative z-10 drop-shadow-lg"
+                                className="w-20 h-20 mx-auto object-contain relative z-10 drop-shadow-md"
                             />
                         </div>
-                        <h1 className="text-5xl font-black text-slate-900 tracking-tighter mb-3">
+                        <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">
                             {isLogin ? t('auth.title_login') : t('auth.title_signup')}
                         </h1>
-                        <p className="text-slate-500 font-bold text-lg">
+                        <p className="text-slate-400 font-bold text-sm">
                             {isLogin ? t('auth.subtitle_login') : t('auth.subtitle_signup')}
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 p-1.5 glass bg-slate-50 rounded-[2rem] mb-10 h-16 relative overflow-hidden border-slate-100">
+                    <div className="grid grid-cols-2 p-1 glass bg-slate-50/50 rounded-2xl mb-8 h-12 relative overflow-hidden border-slate-100">
                         <button
                             onClick={() => setRole('user')}
-                            className={`relative z-10 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest rounded-[1.5rem] transition-all duration-500 ${role === 'user' ? 'text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                            className={`relative z-10 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-500 ${role === 'user' ? 'text-white' : 'text-slate-400 hover:text-slate-500'}`}
                         >
                             <span>👤</span> {t('auth.role_user')}
                         </button>
                         <button
                             onClick={() => setRole('driver')}
-                            className={`relative z-10 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest rounded-[1.5rem] transition-all duration-500 ${role === 'driver' ? 'text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                            className={`relative z-10 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-500 ${role === 'driver' ? 'text-white' : 'text-slate-400 hover:text-slate-500'}`}
                         >
                             <span>🚌</span> {t('auth.role_driver')}
                         </button>
-                        <div className={`absolute inset-y-1.5 w-[calc(50%-6px)] ${role === 'driver' ? 'bg-amber-600 shadow-lg shadow-amber-500/30' : 'bg-blue-600 shadow-lg shadow-blue-500/30'} rounded-[1.6rem] transition-all duration-500 ease-out ${role === 'driver' ? (isRTL ? 'translate-x-[-100%]' : 'translate-x-full') : 'translate-x-0'}`} />
+                        <div className={`absolute inset-y-1 w-[calc(50%-4px)] ${role === 'driver' ? 'bg-amber-600 shadow-md shadow-amber-600/20' : 'bg-blue-600 shadow-md shadow-blue-600/20'} rounded-xl transition-all duration-500 ease-out ${role === 'driver' ? (isRTL ? 'translate-x-[calc(-100%-2px)]' : 'translate-x-[calc(100%+2px)]') : (isRTL ? 'translate-x-[-2px]' : 'translate-x-[2px]')}`} />
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         {!isLogin && (
                             <div className="group">
-                                <label className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-400 ml-6 mb-2 block group-focus-within:text-blue-600 transition-colors">{t('auth.label_name')}</label>
+                                <label className="text-[9px] uppercase tracking-[0.2em] font-black text-slate-400 ml-4 mb-2 block group-focus-within:text-blue-600 transition-colors">{t('auth.label_name')}</label>
                                 <input
                                     type="text"
                                     placeholder="Enter your name"
-                                    className="w-full h-16 px-8 bg-slate-50 border border-slate-100 hover:border-blue-500/30 focus:border-blue-500/50 rounded-2xl focus:ring-4 focus:ring-blue-500/5 transition-all font-bold outline-none text-slate-900 placeholder-slate-300"
+                                    className="w-full h-14 px-6 bg-slate-50/50 border border-slate-100 hover:border-blue-500/20 focus:border-blue-500/40 rounded-xl focus:ring-4 focus:ring-blue-500/5 transition-all font-bold outline-none text-slate-800 placeholder-slate-300 text-sm"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     required
@@ -121,11 +121,11 @@ export default function Login() {
                         )}
 
                         <div className="group">
-                            <label className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-400 ml-6 mb-2 block group-focus-within:text-blue-600 transition-colors">{t('auth.label_email')}</label>
+                            <label className="text-[9px] uppercase tracking-[0.2em] font-black text-slate-400 ml-4 mb-2 block group-focus-within:text-blue-600 transition-colors">{t('auth.label_email')}</label>
                             <input
                                 type="email"
                                 placeholder="name@example.com"
-                                className="w-full h-16 px-8 bg-slate-50 border border-slate-100 hover:border-blue-500/30 focus:border-blue-500/50 rounded-2xl focus:ring-4 focus:ring-blue-500/5 transition-all font-bold outline-none text-slate-900 placeholder-slate-300"
+                                className="w-full h-14 px-6 bg-slate-50/50 border border-slate-100 hover:border-blue-500/20 focus:border-blue-500/40 rounded-xl focus:ring-4 focus:ring-blue-500/5 transition-all font-bold outline-none text-slate-800 placeholder-slate-300 text-sm"
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                 required
@@ -133,11 +133,11 @@ export default function Login() {
                         </div>
 
                         <div className="group">
-                            <label className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-400 ml-6 mb-2 block group-focus-within:text-blue-600 transition-colors">Security Key</label>
+                            <label className="text-[9px] uppercase tracking-[0.2em] font-black text-slate-400 ml-4 mb-2 block group-focus-within:text-blue-600 transition-colors">Security Key</label>
                             <input
                                 type="password"
                                 placeholder="••••••••"
-                                className="w-full h-16 px-8 bg-slate-50 border border-slate-100 hover:border-blue-500/30 focus:border-blue-500/50 rounded-2xl focus:ring-4 focus:ring-blue-500/5 transition-all font-bold outline-none text-slate-900 placeholder-slate-300"
+                                className="w-full h-14 px-6 bg-slate-50/50 border border-slate-100 hover:border-blue-500/20 focus:border-blue-500/40 rounded-xl focus:ring-4 focus:ring-blue-500/5 transition-all font-bold outline-none text-slate-800 placeholder-slate-300 text-sm"
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                 required
@@ -146,11 +146,11 @@ export default function Login() {
 
                         {!isLogin && role === 'driver' && (
                             <div className="group">
-                                <label className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-400 ml-6 mb-2 block group-focus-within:text-amber-600 transition-colors">{t('auth.label_capacity')}</label>
+                                <label className="text-[9px] uppercase tracking-[0.2em] font-black text-slate-400 ml-4 mb-2 block group-focus-within:text-amber-600 transition-colors">{t('auth.label_capacity')}</label>
                                 <input
                                     type="number"
                                     placeholder="14"
-                                    className="w-full h-16 px-8 bg-slate-50 border border-slate-100 hover:border-amber-500/30 focus:border-amber-500/50 rounded-2xl focus:ring-4 focus:ring-amber-500/5 transition-all font-bold outline-none text-slate-900 placeholder-slate-300"
+                                    className="w-full h-14 px-6 bg-slate-50/50 border border-slate-100 hover:border-amber-500/20 focus:border-amber-500/40 rounded-xl focus:ring-4 focus:ring-amber-500/5 transition-all font-bold outline-none text-slate-800 placeholder-slate-300 text-sm"
                                     value={formData.capacity}
                                     onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
                                     required
@@ -159,7 +159,7 @@ export default function Login() {
                         )}
 
                         {error && (
-                            <div className="bg-red-50 border border-red-100 py-4 rounded-2xl text-red-500 text-xs font-black text-center animate-shake uppercase tracking-widest">
+                            <div className="bg-red-50 border border-red-100 py-3 rounded-xl text-red-500 text-[10px] font-black text-center animate-shake uppercase tracking-widest">
                                 {error}
                             </div>
                         )}
@@ -167,12 +167,12 @@ export default function Login() {
                         <button
                             disabled={loading}
                             type="submit"
-                            className={`w-full h-18 relative group overflow-hidden ${role === 'driver' ? 'bg-amber-600 shadow-xl shadow-amber-600/20' : 'bg-blue-600 shadow-xl shadow-blue-600/20'} text-white font-black rounded-2xl transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs`}
+                            className={`w-full h-14 mt-4 relative group overflow-hidden ${role === 'driver' ? 'bg-amber-600 shadow-lg shadow-amber-600/10' : 'bg-blue-600 shadow-lg shadow-blue-600/10'} text-white font-black rounded-xl transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-[10px]`}
                         >
                             <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                             {loading ? (
-                                <span className="flex items-center justify-center gap-3 relative z-10">
-                                    <span className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span className="flex items-center justify-center gap-2 relative z-10">
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                     SECURE AUTHENTICATING...
                                 </span>
                             ) : (
@@ -181,12 +181,12 @@ export default function Login() {
                         </button>
                     </form>
 
-                    <div className="mt-12 text-center">
-                        <p className="text-slate-400 font-bold text-sm tracking-wide">
+                    <div className="mt-8 text-center">
+                        <p className="text-slate-400 font-bold text-xs tracking-wide">
                             {isLogin ? t('auth.toggle_signup') : t('auth.toggle_login')}
                             <button
                                 onClick={() => setIsLogin(!isLogin)}
-                                className={`ml-3 text-slate-900 border-b-2 border-slate-200 hover:border-slate-800 transition-all pb-0.5 ${isRTL ? 'mr-3 ml-0' : 'ml-3'}`}
+                                className={`ml-2 text-slate-900 border-b border-slate-200 hover:border-slate-800 transition-all font-black ${isRTL ? 'mr-2 ml-0' : 'ml-2'}`}
                             >
                                 {isLogin ? 'Workspace' : 'Sign In'}
                             </button>
