@@ -30,6 +30,13 @@ function sanitizeUser(user: DbUser): SafeUser {
     email: user.email,
     role: user.role,
     capacity: parseInt(String(user.capacity), 10) || 0,
+    createdAt: user.createdAt,
+    username: user.username || '',
+    bio: user.bio || '',
+    phone: user.phone || '',
+    address: user.address || '',
+    website: user.website || '',
+    avatarUrl: user.avatarUrl || '',
   };
 }
 
@@ -39,10 +46,87 @@ function findUserByEmail(users: DbUser[], email: unknown): DbUser | null {
   return users.find((user) => normalizeEmail(user.email) === normalizedEmail) || null;
 }
 
+function findUserById(users: DbUser[], id: unknown): DbUser | null {
+  const userId = String(id || '').trim();
+  if (!userId) return null;
+  return users.find((user) => String(user.id) === userId) || null;
+}
+
 function parseCapacity(role: UserRole, capacity: unknown): number {
   if (role !== 'driver') return 0;
   const parsed = parseInt(String(capacity), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 14;
+}
+
+function getAuthUserId(authUser: unknown): string {
+  if (!authUser) return '';
+
+  if (typeof authUser === 'string') {
+    return authUser.trim();
+  }
+
+  if (typeof authUser === 'object') {
+    const payload = authUser as { sub?: unknown; id?: unknown };
+    return String(payload.sub || payload.id || '').trim();
+  }
+
+  return '';
+}
+
+function normalizeOptionalField(
+  value: unknown,
+  fieldLabel: string,
+  maxLength: number,
+): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = String(value ?? '').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length > maxLength) {
+    throw new ServiceError(400, `${fieldLabel} is too long`);
+  }
+
+  return normalized;
+}
+
+function upsertUserStringField(
+  user: DbUser,
+  key: 'username' | 'bio' | 'phone' | 'address' | 'website' | 'avatarUrl',
+  value: unknown,
+  fieldLabel: string,
+  maxLength: number,
+): void {
+  const normalized = normalizeOptionalField(value, fieldLabel, maxLength);
+  if (normalized === undefined) {
+    return;
+  }
+
+  if (normalized === null) {
+    delete user[key];
+    return;
+  }
+
+  user[key] = normalized;
+}
+
+function getUserFromAuth(authUser: unknown): { db: ReturnType<typeof readDB>; user: DbUser } {
+  const userId = getAuthUserId(authUser);
+  if (!userId) {
+    throw new ServiceError(401, 'Unauthorized');
+  }
+
+  const db = readDB();
+  const user = findUserById(db.users, userId);
+  if (!user) {
+    throw new ServiceError(404, 'User not found');
+  }
+
+  return { db, user };
 }
 
 type SignupPayload = {
@@ -57,6 +141,17 @@ type SignupPayload = {
 type LoginPayload = {
   email?: string;
   password?: string;
+};
+
+type UpdateProfilePayload = {
+  name?: string;
+  username?: string;
+  bio?: string;
+  phone?: string;
+  address?: string;
+  website?: string;
+  avatarUrl?: string;
+  capacity?: number | string;
 };
 
 export async function signup(payload: SignupPayload): Promise<SafeUser> {
@@ -142,6 +237,41 @@ export async function login(payload: LoginPayload): Promise<{ user: SafeUser; to
   );
 
   return { user: safeUser, token };
+}
+
+export function getMe(authUser: unknown): SafeUser {
+  const { user } = getUserFromAuth(authUser);
+  return sanitizeUser(user);
+}
+
+export function updateProfile(authUser: unknown, payload: UpdateProfilePayload): SafeUser {
+  const { db, user } = getUserFromAuth(authUser);
+  const profile = payload || {};
+
+  const normalizedName = normalizeOptionalField(profile.name, 'Name', 80);
+  if (normalizedName !== undefined) {
+    if (normalizedName === null) {
+      throw new ServiceError(400, 'Name cannot be empty');
+    }
+    user.name = normalizedName;
+  }
+
+  upsertUserStringField(user, 'username', profile.username, 'Username', 40);
+  upsertUserStringField(user, 'bio', profile.bio, 'Bio', 300);
+  upsertUserStringField(user, 'phone', profile.phone, 'Phone number', 30);
+  upsertUserStringField(user, 'address', profile.address, 'Address', 160);
+  upsertUserStringField(user, 'website', profile.website, 'Website', 120);
+  upsertUserStringField(user, 'avatarUrl', profile.avatarUrl, 'Avatar URL', 400000);
+
+  if (profile.capacity !== undefined) {
+    if (user.role !== 'driver') {
+      throw new ServiceError(400, 'Only drivers can update capacity');
+    }
+    user.capacity = parseCapacity('driver', profile.capacity);
+  }
+
+  writeDB(db);
+  return sanitizeUser(user);
 }
 
 export function listUsers(): SafeUser[] {

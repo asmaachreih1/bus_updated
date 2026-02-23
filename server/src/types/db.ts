@@ -1,5 +1,14 @@
 export type UserRole = 'user' | 'driver' | 'admin' | string;
 
+export interface UserProfileFields {
+  username?: string;
+  bio?: string;
+  phone?: string;
+  address?: string;
+  website?: string;
+  avatarUrl?: string;
+}
+
 export interface DbUser {
   id: string;
   name: string;
@@ -9,6 +18,12 @@ export interface DbUser {
   createdAt?: string;
   passwordHash?: string;
   password?: string;
+  username?: string;
+  bio?: string;
+  phone?: string;
+  address?: string;
+  website?: string;
+  avatarUrl?: string;
 }
 
 export interface VanLocation {
@@ -60,4 +75,11 @@ export interface SafeUser {
   email: string;
   role: UserRole;
   capacity: number;
+  createdAt?: string;
+  username?: string;
+  bio?: string;
+  phone?: string;
+  address?: string;
+  website?: string;
+  avatarUrl?: string;
 }

@@ -21,7 +21,17 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 
 export async function me(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.json({ success: true, user: req.user });
+    const user = authService.getMe(req.user);
+    res.json({ success: true, user });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = authService.updateProfile(req.user, req.body);
+    res.json({ success: true, user });
   } catch (error) {
     next(error);
   }

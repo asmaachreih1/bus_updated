@@ -43,7 +43,8 @@
       "passwordHash": "$2a$10$ga4mj7b.Ab9BR1X3BP.OleW94ICv9ZA46pxyM2gk9ueiHFBFaLF1S",
       "role": "user",
       "capacity": 0,
-      "createdAt": "2026-02-19T10:39:39.845Z"
+      "createdAt": "2026-02-19T10:39:39.845Z",
+      "username": "asmaa12"
     },
     {
       "id": "zele90xo",
@@ -89,6 +90,15 @@
       "role": "user",
       "capacity": 0,
       "createdAt": "2026-02-19T11:45:18.314Z"
+    },
+    {
+      "id": "s6x1zjyc",
+      "name": "salim",
+      "email": "salim@gmail.com",
+      "passwordHash": "$2a$10$/drY51kxI7gXSl1rbC6Cj.DMqN84w8Om/sEr58K5Ah45aSMU5IWie",
+      "role": "driver",
+      "capacity": 14,
+      "createdAt": "2026-02-23T09:17:26.680Z"
     }
   ],
   "clusters": {},
@@ -113,11 +123,11 @@
     },
     "5vbyert6": {
       "id": "5vbyert6",
-      "lat": 33.620347367917546,
-      "lng": 35.431770919349724,
+      "lat": 33.620175,
+      "lng": 35.431155,
       "name": "asmaa",
       "arrived": false,
-      "lastUpdated": "2026-02-19T10:55:15.055Z"
+      "lastUpdated": "2026-02-23T09:21:36.989Z"
     },
     "zele90xo": {
       "id": "zele90xo",
