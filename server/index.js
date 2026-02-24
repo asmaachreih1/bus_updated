@@ -1,13 +1,29 @@
+require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors');      
 const fs = require('fs');
 const path = require('path');
+
 const app = express();
 const port = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'db.json');
 
-app.use(cors());
+// ✅ Middleware FIRST
 app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+
+// ✅ Stripe routes AFTER middleware
+const stripeRoutes = require('./stripeRoutes');
+app.use('/api/stripe', stripeRoutes);
+
+app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 
 // Helper: Read/Write DB
 function readDb() {

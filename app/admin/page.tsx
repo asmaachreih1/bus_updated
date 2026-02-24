@@ -20,7 +20,7 @@ export default function AdminDashboard() {
     const [reports, setReports] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
     useEffect(() => {
         const savedUser = localStorage.getItem('tracker_user');
