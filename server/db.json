@@ -30,57 +30,50 @@
     {
       "id": "7chlns16",
       "name": "hi",
+      "role": "user",
       "email": "ok@example.com",
       "passwordHash": "$2a$10$kAW/xdtLfMPdxrz6TA7KI..x09Vh9cHbMSJxCdpUty0QSokeDvUem",
-      "role": "user",
       "capacity": 0,
       "createdAt": "2026-02-25T09:43:59.767Z"
     },
     {
       "id": "0qjs0ve4",
       "name": "Asmaa",
+      "role": "user",
       "email": "user@example.com",
       "passwordHash": "$2a$10$K7iV7dyLPe4jwrN6.306nuWVVCfQNa3a9fMiRk/iOsq5mefNB.EhG",
-      "role": "user",
       "capacity": 0,
       "createdAt": "2026-02-25T09:44:23.456Z"
     },
     {
       "id": "khdrjwtv",
       "name": "Asmaa Shreih",
+      "role": "user",
       "email": "profile_tester@example.com",
       "passwordHash": "$2a$10$A4QXuBaDgxbcwtrl8Gvy0umAMm2ELkKiiawsYepjJcdsXlihf1VaW",
-      "role": "user",
       "capacity": 0,
       "createdAt": "2026-02-25T09:49:28.246Z"
     },
     {
       "id": "jyvolfyr",
       "name": "Final Tester",
+      "role": "user",
       "email": "finaltester_v5@example.com",
       "passwordHash": "$2a$10$tm8vfkFv.ij.ZUqeITjYVeFxsmYan3Dr7nj/zW3m9PF4htZL0btoK",
-      "role": "user",
       "capacity": 0,
       "createdAt": "2026-02-25T09:51:40.158Z"
     },
     {
       "id": "5dijhdbd",
       "name": "driver",
+      "role": "driver",
       "email": "driver@example.com",
       "passwordHash": "$2a$10$kxettR2vpTYbukCL/Xf2t.UMuX92fdKBUyCRD4MVKTm4GfujojlhO",
-      "role": "driver",
       "capacity": 14,
       "createdAt": "2026-02-25T09:59:51.492Z"
     }
   ],
-  "clusters": {
-    "weq41": {
-      "id": "weq41",
-      "name": "ok",
-      "driverId": "5dijhdbd",
-      "members": []
-    }
-  },
+  "clusters": {},
   "attendance": {
     "2026-02-25": {
       "fv15a3wk": "coming",
@@ -149,7 +142,7 @@
       "lng": 35.21379651995247,
       "name": "ok",
       "arrived": false,
-      "lastUpdated": "2026-02-25T19:35:04.797Z"
+      "lastUpdated": "2026-02-25T19:36:04.802Z"
     }
   },
   "reports": []
