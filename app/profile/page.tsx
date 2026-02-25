@@ -169,18 +169,16 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-2">
-                    {user.role !== 'driver' && (
-                        <button
-                            onClick={() => {
-                                sessionStorage.setItem('open_support_modal', '1');
-                                router.push('/');
-                            }}
-                            className="w-full py-2.5 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-xl transition-colors border border-slate-200 flex items-center justify-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
-                            {t('common.support') || 'Help & Support'}
-                        </button>
-                    )}
+                    <button
+                        onClick={() => {
+                            sessionStorage.setItem('open_support_modal', '1');
+                            router.push('/');
+                        }}
+                        className="w-full py-2.5 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-xl transition-colors border border-slate-200 flex items-center justify-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
+                        {t('common.support') || 'Help & Support'}
+                    </button>
                     <button
                         onClick={() => {
                             localStorage.removeItem('tracker_user');
@@ -246,21 +244,19 @@ export default function Profile() {
                 </div>
 
                 {/* Support - Hide for Driver */}
-                {user?.role !== 'driver' && (
-                    <div className="flex flex-col items-center flex-shrink-0 w-16">
-                        <button
-                            onClick={() => {
-                                sessionStorage.setItem('open_support_modal', '1');
-                                router.push('/');
-                            }}
-                            className="p-2 text-slate-400 hover:text-rose-500 transition-colors flex flex-col items-center gap-1 group"
-                            title="Support & Reports"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
-                        </button>
-                        <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">Support</span>
-                    </div>
-                )}
+                <div className="flex flex-col items-center flex-shrink-0 w-16">
+                    <button
+                        onClick={() => {
+                            sessionStorage.setItem('open_support_modal', '1');
+                            router.push('/');
+                        }}
+                        className="p-2 text-slate-400 hover:text-rose-500 transition-colors flex flex-col items-center gap-1 group"
+                        title="Support & Reports"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
+                    </button>
+                    <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">Support</span>
+                </div>
             </div>
         </div>
     );
