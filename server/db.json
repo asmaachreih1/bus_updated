@@ -81,7 +81,11 @@
       "members": []
     }
   },
-  "attendance": {},
+  "attendance": {
+    "2026-02-25": {
+      "fv15a3wk": "coming"
+    }
+  },
   "vanLocations": {
     "5dijhdbd": {
       "id": "5dijhdbd",
@@ -89,6 +93,20 @@
       "lng": 35.43115044114258,
       "isDriving": true,
       "lastUpdated": "2026-02-25T10:17:58.382Z"
+    },
+    "er9nv5on": {
+      "id": "er9nv5on",
+      "lat": 33.23903875220939,
+      "lng": 35.21388698504797,
+      "isDriving": true,
+      "lastUpdated": "2026-02-25T19:12:54.362Z"
+    },
+    "nl9ff2e2": {
+      "id": "nl9ff2e2",
+      "lat": 33.239025236898044,
+      "lng": 35.21377544699779,
+      "isDriving": true,
+      "lastUpdated": "2026-02-25T19:23:55.876Z"
     }
   },
   "memberLocations": {
@@ -118,11 +136,11 @@
     },
     "fv15a3wk": {
       "id": "fv15a3wk",
-      "lat": 33.238945499766736,
-      "lng": 35.214216708082546,
+      "lat": 33.23896387621465,
+      "lng": 35.21372107347457,
       "name": "asmaa",
       "arrived": false,
-      "lastUpdated": "2026-02-25T17:19:29.482Z"
+      "lastUpdated": "2026-02-25T18:58:25.738Z"
     }
   },
   "reports": []

@@ -19,7 +19,14 @@ export default function Profile() {
     const { t, isRTL } = useLanguage();
     const [user, setUser] = useState<ProfileUser | null>(null);
     const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     const getInitials = (name?: string) => {
         if (!name) return '??';
@@ -41,6 +48,14 @@ export default function Profile() {
         } catch {
             router.push('/login');
         }
+
+        const handleStorageChange = () => {
+            const updatedUser = localStorage.getItem('tracker_user');
+            if (updatedUser) setUser(JSON.parse(updatedUser));
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, [router]);
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,11 +74,11 @@ export default function Profile() {
     if (!user) return null;
 
     return (
-        <div className={`min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 font-[family-name:var(--font-geist-sans)] relative overflow-hidden ${isRTL ? 'text-right' : 'text-left'}`}>
-            <div className="absolute top-0 right-0 w-full md:w-1/2 h-full bg-gradient-to-bl from-indigo-50/50 via-transparent to-transparent pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-full md:w-1/2 h-full bg-gradient-to-tr from-rose-50/50 via-transparent to-transparent pointer-events-none" />
+        <div className={`min-h-screen bg-slate-50 flex flex-col items-center p-4 sm:p-6 pb-64 pt-8 font-[family-name:var(--font-geist-sans)] relative overflow-y-auto overflow-x-hidden ${isRTL ? 'text-right' : 'text-left'}`}>
+            <div className="fixed top-0 right-0 w-full md:w-1/2 h-full bg-gradient-to-bl from-indigo-50/50 via-transparent to-transparent pointer-events-none" />
+            <div className="fixed bottom-0 left-0 w-full md:w-1/2 h-full bg-gradient-to-tr from-rose-50/50 via-transparent to-transparent pointer-events-none" />
 
-            <div className="w-full max-w-md bg-white rounded-[2rem] p-8 border border-slate-100 relative z-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="w-full max-w-md bg-white rounded-[2rem] p-6 border border-slate-100 relative z-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-4">
                 <button
                     onClick={() => router.push('/')}
                     className={`flex items-center gap-1.5 text-slate-400 hover:text-slate-900 transition-colors font-semibold text-xs mb-8 group ${isRTL ? 'flex-row-reverse' : ''}`}
@@ -76,7 +91,7 @@ export default function Profile() {
                     <div className="relative group mb-4">
                         <div
                             onClick={() => fileInputRef.current?.click()}
-                            className={`w-28 h-28 rounded-full flex items-center justify-center text-3xl font-bold shadow-sm relative overflow-hidden cursor-pointer ring-4 ring-white border border-slate-100 ${user.role === 'driver' ? 'bg-indigo-600 text-white' : 'bg-[#274162] text-white'}`}
+                            className={`w-28 h-28 rounded-full flex items-center justify-center text-3xl font-bold shadow-sm relative overflow-hidden cursor-pointer ring-4 ring-white border border-slate-100 bg-[#274162] text-white`}
                             style={photoDataUrl ? { backgroundImage: `url(${photoDataUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' } : undefined}
                         >
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white backdrop-blur-sm">
@@ -98,16 +113,16 @@ export default function Profile() {
 
                     <h1 className="text-2xl font-bold text-slate-900 mb-1.5">{user.name}</h1>
                     <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-[11px] font-medium ${user.role === 'driver' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-[#274162]/10 text-[#274162] border border-[#274162]/20'}`}>
+                        <span className={`px-3 py-1 rounded-full text-[11px] font-medium ${user.role === 'driver' ? 'bg-[#274162]/10 text-[#274162] border border-[#274162]/20' : 'bg-[#274162]/10 text-[#274162] border border-[#274162]/20'}`}>
                             {user.role === 'driver' ? t('auth.role_driver') || 'Driver' : (user.clusterCode || user.clusterId ? `Cluster ${user.clusterCode || user.clusterId}` : 'Member')}
                         </span>
                     </div>
                 </div>
 
-                <div className="space-y-3 mb-8">
-                    <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 flex-shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+                <div className="space-y-2 mb-6">
+                    <div className="p-3 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
                         </div>
                         <div className="overflow-hidden">
                             <p className="text-[11px] font-medium text-slate-400 mb-0.5">{t('profile.primary_email') || 'Email Address'}</p>
@@ -116,42 +131,72 @@ export default function Profile() {
                     </div>
 
                     {user.role === 'driver' && (
-                        <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 flex-shrink-0">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" /><path d="M15 18H9" /><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" /><circle cx="17" cy="18" r="2" /><circle cx="7" cy="18" r="2" /></svg>
+                        <>
+                            <div className="p-3 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 flex-shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" /><path d="M15 18H9" /><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" /><circle cx="17" cy="18" r="2" /><circle cx="7" cy="18" r="2" /></svg>
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-medium text-slate-400 mb-0.5">{t('auth.label_capacity') || 'Vehicle Capacity'}</p>
+                                    <p className="text-sm font-medium text-slate-700">{user.capacity} <span className="text-slate-400 font-normal">{t('profile.authorized_seats') || 'Seats'}</span></p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-[11px] font-medium text-slate-400 mb-0.5">{t('auth.label_capacity') || 'Vehicle Capacity'}</p>
-                                <p className="text-sm font-medium text-slate-700">{user.capacity} <span className="text-slate-400 font-normal">{t('profile.authorized_seats') || 'Seats'}</span></p>
-                            </div>
-                        </div>
+                            {user.clusterCode && (
+                                <div className="p-3 bg-[#274162]/5 rounded-2xl border border-[#274162]/10 flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#274162] shadow-sm border border-[#274162]/10 flex-shrink-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><polyline points="16 11 18 13 22 9" /></svg>
+                                    </div>
+                                    <div className="flex-grow">
+                                        <p className="text-[11px] font-medium text-[#274162]/60 mb-0.5">Active Cluster Code</p>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-black text-[#274162] tracking-wider uppercase">{user.clusterCode}</p>
+                                            <button
+                                                onClick={() => copyToClipboard(user.clusterCode || '')}
+                                                className={`p-1.5 rounded-lg transition-all ${copied ? 'bg-[#f5b829] text-white shadow-[0_0_15px_rgba(245,184,41,0.3)]' : 'hover:bg-[#274162]/10 text-[#274162]/60'}`}
+                                            >
+                                                {copied ? (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                                                ) : (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 
                 <div className="space-y-2">
-                    <button
-                        onClick={() => {
-                            sessionStorage.setItem('open_support_modal', '1');
-                            router.push('/');
-                        }}
-                        className="w-full py-3.5 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-xl transition-colors border border-slate-200 flex items-center justify-center gap-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
-                        {t('common.support') || 'Help & Support'}
-                    </button>
+                    {user.role !== 'driver' && (
+                        <button
+                            onClick={() => {
+                                sessionStorage.setItem('open_support_modal', '1');
+                                router.push('/');
+                            }}
+                            className="w-full py-2.5 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-xl transition-colors border border-slate-200 flex items-center justify-center gap-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
+                            {t('common.support') || 'Help & Support'}
+                        </button>
+                    )}
                     <button
                         onClick={() => {
                             localStorage.removeItem('tracker_user');
                             localStorage.removeItem('token');
                             router.push('/login');
                         }}
-                        className="w-full py-3.5 bg-white hover:bg-red-50 text-red-500 text-sm font-medium rounded-xl transition-colors border border-slate-200 hover:border-red-200 flex items-center justify-center gap-2"
+                        className="w-full py-2.5 bg-white hover:bg-red-50 text-red-500 text-sm font-medium rounded-xl transition-colors border border-slate-200 hover:border-red-200 flex items-center justify-center gap-2"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
                         {t('common.logout') || 'Sign Out'}
                     </button>
                 </div>
             </div>
+
+            {/* Extra spacer to ensure content clears the fixed bottom navbar */}
+            <div className="h-20 w-full flex-shrink-0" />
 
             {/* Bottom Navigation Bar */}
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.05)] md:px-12 md:pb-6 md:rounded-t-[2.5rem] md:border-none md:shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
@@ -200,20 +245,22 @@ export default function Profile() {
                     <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">{user?.role === 'user' ? 'Cluster' : 'Manage'}</span>
                 </div>
 
-                {/* Support */}
-                <div className="flex flex-col items-center flex-shrink-0 w-16">
-                    <button
-                        onClick={() => {
-                            sessionStorage.setItem('open_support_modal', '1');
-                            router.push('/');
-                        }}
-                        className="p-2 text-slate-400 hover:text-rose-500 transition-colors flex flex-col items-center gap-1 group"
-                        title="Support & Reports"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
-                    </button>
-                    <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">Support</span>
-                </div>
+                {/* Support - Hide for Driver */}
+                {user?.role !== 'driver' && (
+                    <div className="flex flex-col items-center flex-shrink-0 w-16">
+                        <button
+                            onClick={() => {
+                                sessionStorage.setItem('open_support_modal', '1');
+                                router.push('/');
+                            }}
+                            className="p-2 text-slate-400 hover:text-rose-500 transition-colors flex flex-col items-center gap-1 group"
+                            title="Support & Reports"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
+                        </button>
+                        <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">Support</span>
+                    </div>
+                )}
             </div>
         </div>
     );

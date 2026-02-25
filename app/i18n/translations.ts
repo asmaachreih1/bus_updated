@@ -77,7 +77,7 @@ export const translations = {
         cluster: {
             ops: "Cluster Operations",
             boarding_status: "Daily Boarding Status",
-            name_placeholder: "Cluster Name (e.g. Alpha Wing)",
+            name_placeholder: "Cluster Name",
             establish: "Establish Cluster",
             confirm: "Confirm",
             absent: "Absent",
@@ -179,7 +179,7 @@ export const translations = {
         cluster: {
             ops: "عمليات التجمع",
             boarding_status: "حالة الصعود اليومية",
-            name_placeholder: "اسم التجمع (مثال: الجناح ألفا)",
+            name_placeholder: "اسم التجمع",
             establish: "تأسيس التجمع",
             confirm: "تأكيد",
             absent: "غائب",

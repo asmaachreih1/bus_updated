@@ -41,9 +41,11 @@ export const ClusterController = {
         try {
             const { userId } = req.params;
             const user = await User.findOne({ id: userId });
-            if (!user || !user.clusterId) return res.json({ cluster: null });
+            if (!user || !user.clusterId) return res.json({ cluster: null, members: [] });
             const cluster = await Cluster.findOne({ code: user.clusterId });
-            res.json({ cluster });
+            if (!cluster) return res.json({ cluster: null, members: [] });
+            const members = await ClusterService.getMembers(cluster.code);
+            res.json({ cluster, members });
         } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
         }

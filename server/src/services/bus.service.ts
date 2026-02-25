@@ -22,6 +22,7 @@ type UpdateMemberPayload = {
   lng?: number | string;
   name?: string;
   arrived?: boolean;
+  selectedVanId?: string;
 };
 
 type CreateClusterPayload = {
@@ -86,6 +87,7 @@ export function updateMember(payload: UpdateMemberPayload) {
     lng: parseFloat(String(lng)),
     name: name || 'Friend',
     arrived: arrived !== undefined ? arrived : previouslyArrived,
+    selectedVanId: payload.selectedVanId,
     lastUpdated: new Date(),
   };
 

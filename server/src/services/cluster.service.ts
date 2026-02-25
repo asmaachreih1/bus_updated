@@ -12,7 +12,10 @@ export const ClusterService = {
             if (!existing) exists = false;
         }
 
-        const newCluster = new Cluster({ name, driverId, code });
+        const driver = await User.findOne({ id: driverId });
+        const capacity = driver?.capacity || 12;
+
+        const newCluster = new Cluster({ name, driverId, code, capacity });
         await newCluster.save();
 
         // Update driver's clusterId

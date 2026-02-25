@@ -209,70 +209,56 @@ export default function Home() {
 
         setVans(activeVansList);
 
+        const currentVanId = userRef.current?.role === 'driver' ? myIdRef.current : selectedVanIdRef.current;
         let filteredMembers = activeMembersList;
-        if (userRef.current?.role === 'driver') {
-          filteredMembers = activeMembersList.filter((m: any) => m.selectedVanId === myIdRef.current);
+        if (currentVanId) {
+          filteredMembers = activeMembersList.filter((m: any) => m.selectedVanId === currentVanId);
         }
         setMembers(filteredMembers);
 
         if (view === 'app') {
-          // Geofencing Check for Passenger
-          if (userRef.current?.role === 'user' && activeVansList.length > 0) {
-            const selectedVan = activeVansList.find((v: any) => v.id === selectedVanIdRef.current);
-            if (!selectedVan) {
-              // Discovery Mode: Calculate ETAs to all vans
-              dms.getDistanceMatrix({
-                origins: activeVansList.map((v: any) => ({ lat: v.lat, lng: v.lng })),
-                destinations: [pos],
-                travelMode: 'DRIVING',
-              }, (response: any, status: string) => {
-                if (status === 'OK') {
-                  const newDiscoveryEtas: { [key: string]: string } = {};
-                  response.rows.forEach((row: any, i: number) => {
-                    const el = row.elements[0];
-                    if (el.status === 'OK') {
-                      newDiscoveryEtas[activeVansList[i].id] = el.duration.text;
-                    }
-                  });
-                  setDiscoveryEtas(newDiscoveryEtas);
-                }
-              });
-            } else {
-              // Active Tracking Mode
-              dms.getDistanceMatrix({
-                origins: [{ lat: selectedVan.lat, lng: selectedVan.lng }],
-                destinations: [pos],
-                travelMode: 'DRIVING',
-              }, async (response: any, status: string) => {
-                if (status === 'OK') {
-                  const el = response.rows[0].elements[0];
-                  if (el.status === 'OK') {
-                    const seconds = el.duration.value;
-                    setEtaSeconds(seconds);
+          const activeVan = activeVansList.find((v: any) => v.id === currentVanId);
 
-                    // AUTO-ARRIVAL (1 min)
-                    if (seconds < 60 && !hasNotifiedArrival) {
-                      await fetch(`${apiUrl}/api/update-member`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: myIdRef.current, ...pos, arrived: true })
-                      });
-                      setHasNotifiedArrival(true);
-                      setStatus('Arrived - Welcome Aboard');
-                    }
+          // 1. Calculate Individual ETAs for the cluster
+          if (activeVan && filteredMembers.length > 0) {
+            calculateETAs(dms, activeVan, filteredMembers);
+          }
+
+          // 2. Discovery Mode ETAs (for users not in a cluster)
+          if (userRef.current?.role === 'user' && !activeVan && activeVansList.length > 0) {
+            dms.getDistanceMatrix({
+              origins: activeVansList.map((v: any) => ({ lat: v.lat, lng: v.lng })),
+              destinations: [pos],
+              travelMode: 'DRIVING',
+            }, (response: any, status: string) => {
+              if (status === 'OK') {
+                const newDiscoveryEtas: { [key: string]: string } = {};
+                response.rows.forEach((row: any, i: number) => {
+                  const el = row.elements[0];
+                  if (el.status === 'OK') {
+                    newDiscoveryEtas[activeVansList[i].id] = el.duration.text;
                   }
-                }
+                });
+                setDiscoveryEtas(newDiscoveryEtas);
+              }
+            });
+          }
+
+          // 3. Auto-Arrival Check (for users already in a cluster)
+          if (userRef.current?.role === 'user' && activeVan && etaSeconds !== null) {
+            if (etaSeconds < 60 && !hasNotifiedArrival) {
+              await fetch(`${apiUrl}/api/update-member`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: myIdRef.current, ...pos, arrived: true })
               });
+              setHasNotifiedArrival(true);
+              setStatus('Arrived - Welcome Aboard');
             }
           }
 
-          // 3. Update Markers
+          // 4. Update Markers
           updateMapMarkers(activeVansList, filteredMembers);
-
-          // 4. Calculate ETAs (for drivers to see all assigned members)
-          if (activeVansList.length > 0 && filteredMembers.length > 0 && userRef.current?.role === 'driver') {
-            calculateETAs(dms, activeVansList[0], filteredMembers);
-          }
         }
 
       } catch (err) {
@@ -652,6 +638,9 @@ export default function Home() {
           user={user}
           isOpen={isClusterManagerOpen}
           onClose={() => setIsClusterManagerOpen(false)}
+          etaSeconds={etaSeconds}
+          memberEtas={memberEtas}
+          onClusterJoin={(driverId: string) => handleSelectVan(driverId)}
         />
       )}
     </div>

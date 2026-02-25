@@ -5,6 +5,7 @@ const clusterSchema = new mongoose.Schema({
     code: { type: String, required: true, unique: true },
     driverId: { type: String, required: true },
     members: [{ type: String }], // Array of user IDs
+    capacity: { type: Number, default: 12 },
     createdAt: { type: Date, default: Date.now }
 });
 

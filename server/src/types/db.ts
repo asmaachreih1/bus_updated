@@ -25,6 +25,7 @@ export interface MemberLocation {
   lng: number;
   name: string;
   arrived: boolean;
+  selectedVanId?: string;
   lastUpdated: Date | string;
 }
 
