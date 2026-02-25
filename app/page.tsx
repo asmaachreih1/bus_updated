@@ -380,7 +380,7 @@ export default function Home() {
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-40 w-[24rem] glass-card border-r-0 flex flex-col px-8 py-12 transition-transform duration-500 ease-in-out lg:relative lg:translate-x-0
+        fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-40 w-full xs:w-[20rem] sm:w-[24rem] glass-card border-r-0 flex flex-col px-6 sm:px-8 py-10 sm:py-12 transition-transform duration-500 ease-in-out lg:relative lg:translate-x-0
         ${isSidebarOpen ? 'translate-x-0' : (isRTL ? 'translate-x-[100%]' : '-translate-x-full')}
       `}>
 
@@ -443,9 +443,9 @@ export default function Home() {
             </div>
           ) : user?.role === 'user' && !selectedVanId ? (
             <div className="space-y-6">
-              <div className="glass p-8 rounded-[2.5rem] border-slate-200 shadow-xl shadow-[#f5b829]/50">
+              <div className="glass p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border-slate-200 shadow-xl shadow-[#f5b829]/50">
                 <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest mb-4">Discovery</p>
-                <h2 className="text-xl font-black text-slate-800 mb-2">{t('main.available_vehicles')}</h2>
+                <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-2">{t('main.available_vehicles')}</h2>
                 <div className="space-y-3 mt-6">
                   {vans.map(v => (
                     <div key={v.id} className="glass p-5 rounded-2xl flex items-center justify-between border-slate-200 hover:border-[#f5b829]/50 hover:shadow-lg transition-all">
@@ -475,7 +475,7 @@ export default function Home() {
             <>
               {/* Active Tracking Card */}
               {user?.role === 'user' && (
-                <div className={`glass-card p-8 rounded-[3rem] border-slate-200 relative overflow-hidden group transition-all duration-500 ${etaSeconds !== null && etaSeconds < 120 ? 'border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)]' : ''}`}>
+                <div className={`glass-card p-6 sm:p-8 rounded-[2.5rem] sm:rounded-[3rem] border-slate-200 relative overflow-hidden group transition-all duration-500 ${etaSeconds !== null && etaSeconds < 120 ? 'border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)]' : ''}`}>
                   <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl -translate-y-1/2 translate-x-1/2 ${etaSeconds !== null && etaSeconds < 120 ? 'bg-emerald-500/20' : 'bg-[#f5b829]/10'}`} />
                   <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest mb-4">{t('main.arrival_status')}</p>
                   <div className="flex items-baseline gap-2 mb-1">
@@ -565,7 +565,7 @@ export default function Home() {
             </div>
           </div>
         )}
-        <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.05)] md:px-12 md:pb-6 md:rounded-t-[2.5rem] md:border-none md:shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
+        <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 px-4 sm:px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.05)] md:px-12 md:pb-6 md:rounded-t-[2.5rem] md:border-none md:shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
           {/* Member Info (Current Stats) */}
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-400 hover:text-[#f5b829] transition-colors flex flex-col items-center gap-1 group flex-shrink-0 w-16">
             {user?.role === 'user' ? (

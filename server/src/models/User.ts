@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema({
     role: { type: String, enum: ['user', 'driver', 'admin'], default: 'user' },
     capacity: { type: Number, default: 0 },
     clusterId: { type: String },
+    isSubscribed: { type: Boolean, default: false },
+    subscriptionType: { type: String, enum: ['none', 'daily', 'weekly', 'monthly'], default: 'none' },
     createdAt: { type: Date, default: Date.now }
 });
 

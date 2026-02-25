@@ -78,7 +78,7 @@ export default function Profile() {
             <div className="fixed top-0 right-0 w-full md:w-1/2 h-full bg-gradient-to-bl from-indigo-50/50 via-transparent to-transparent pointer-events-none" />
             <div className="fixed bottom-0 left-0 w-full md:w-1/2 h-full bg-gradient-to-tr from-rose-50/50 via-transparent to-transparent pointer-events-none" />
 
-            <div className="w-full max-w-md bg-white rounded-[2rem] p-6 border border-slate-100 relative z-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-4">
+            <div className="w-full max-w-md bg-white rounded-[2.5rem] sm:rounded-[2rem] p-6 sm:p-8 border border-slate-100 relative z-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-4">
                 <button
                     onClick={() => router.push('/')}
                     className={`flex items-center gap-1.5 text-slate-400 hover:text-slate-900 transition-colors font-semibold text-xs mb-8 group ${isRTL ? 'flex-row-reverse' : ''}`}
@@ -197,7 +197,7 @@ export default function Profile() {
             <div className="h-20 w-full flex-shrink-0" />
 
             {/* Bottom Navigation Bar */}
-            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.05)] md:px-12 md:pb-6 md:rounded-t-[2.5rem] md:border-none md:shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 px-4 sm:px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.05)] md:px-12 md:pb-6 md:rounded-t-[2.5rem] md:border-none md:shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
                 {/* Member Info (Current Stats) */}
                 <button onClick={() => {
                     sessionStorage.setItem('open_sidebar', '1');
