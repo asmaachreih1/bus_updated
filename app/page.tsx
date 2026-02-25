@@ -110,10 +110,18 @@ export default function Home() {
         }
       }
 
-      // Auto-open support modal if redirected from profile
+      // Auto-open modals if redirected from other pages
       if (sessionStorage.getItem('open_support_modal') === '1') {
         sessionStorage.removeItem('open_support_modal');
         setIsReportModalOpen(true);
+      }
+      if (sessionStorage.getItem('open_sidebar') === '1') {
+        sessionStorage.removeItem('open_sidebar');
+        setIsSidebarOpen(true);
+      }
+      if (sessionStorage.getItem('open_cluster_manager') === '1') {
+        sessionStorage.removeItem('open_cluster_manager');
+        setIsClusterManagerOpen(true);
       }
     } else {
       router.replace('/login');
@@ -389,29 +397,7 @@ export default function Home() {
         fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-40 w-[24rem] glass-card border-r-0 flex flex-col px-8 py-12 transition-transform duration-500 ease-in-out lg:relative lg:translate-x-0
         ${isSidebarOpen ? 'translate-x-0' : (isRTL ? 'translate-x-[100%]' : '-translate-x-full')}
       `}>
-        <div className="flex items-center justify-between mb-12">
-          <div className="flex items-center gap-5">
-            <button onClick={() => window.location.href = '/profile'} className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl shadow-sm relative group overflow-hidden ${user?.role === 'driver' ? 'bg-[#f5b829]/10 text-[#f5b829] border border-[#f5b829]/20 hover:bg-[#f5b829]/20' : 'bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20'} transition-all`}>
-              <span className="relative z-10 flex items-center justify-center">
-                {user?.role === 'driver' ? (
-                  (user?.capacity || 0) >= 5 ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bus-icon lucide-bus"><path d="M8 6v6" /><path d="M15 6v6" /><path d="M2 12h19.6" /><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" /><circle cx="7" cy="18" r="2" /><path d="M9 18h5" /><circle cx="16" cy="18" r="2" /></svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-car-icon lucide-car"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" /><circle cx="7" cy="17" r="2" /><path d="M9 17h6" /><circle cx="17" cy="17" r="2" /></svg>
-                  )
-                ) : <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
-              </span>
-            </button>
-            <div>
-              <h1 className="text-3xl font-black tracking-tighter text-slate-800">TRACKER</h1>
-              <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${user?.role === 'driver' ? 'text-[#f5b829]' : 'text-blue-500'}`}>
-                {t(`auth.role_${user?.role || 'user'}`)} {t('main.session_type')}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        {/* Language Switcher in Sidebar */}
         <div className="mb-8">
           <div className="grid grid-cols-2 glass p-1 rounded-2xl border-slate-200">
             <button
@@ -593,37 +579,57 @@ export default function Home() {
             </div>
           </div>
         )}
-        {/* Mobile Bottom Nav */}
-        <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 px-10 py-4 pb-8 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.05)]">
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-400 hover:text-[#f5b829] transition-colors flex flex-col items-center gap-1 group">
+        <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.05)] md:px-12 md:pb-6 md:rounded-t-[2.5rem] md:border-none md:shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
+          {/* Member Info (Current Stats) */}
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-400 hover:text-[#f5b829] transition-colors flex flex-col items-center gap-1 group flex-shrink-0 w-16">
             {user?.role === 'user' ? (
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user group-hover:scale-110 transition-transform"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-activity group-hover:scale-110 transition-transform"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-home group-hover:scale-110 transition-transform"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-home group-hover:scale-110 transition-transform"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
             )}
-            <span className="text-[9px] font-black uppercase tracking-widest">{user?.role === 'user' ? t('auth.role_user') : 'Home'}</span>
+            <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate">{user?.role === 'user' ? 'Status' : 'Home'}</span>
           </button>
 
-          <div className="relative -top-8">
+          {/* Profile */}
+          <button onClick={() => window.location.href = '/profile'} className="p-2 text-slate-400 hover:text-[#f5b829] transition-colors flex flex-col items-center gap-1 group flex-shrink-0 w-16">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user group-hover:scale-110 transition-transform"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+            <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate">Profile</span>
+          </button>
+
+          {/* Center Map Button */}
+          <div className="relative -top-6 flex-shrink-0 px-2">
             <button
               onClick={() => mapRef.current?.setCenter(studentPos)}
               className="w-16 h-16 bg-[#f5b829] text-white rounded-full flex items-center justify-center shadow-xl shadow-[#f5b829]/40 border-4 border-slate-50 transition-transform active:scale-95 hover:bg-[#f5b829]/80"
+              title="Center Map"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-icon lucide-map"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /><path d="M15 5.764v15" /><path d="M9 3.236v15" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
             </button>
           </div>
 
-          {user?.role === 'user' && (
-            <div className="flex flex-col items-center gap-1">
-              <button
-                onClick={() => setIsClusterManagerOpen(true)}
-                className="w-10 h-10 rounded-full bg-[#f5b829]/10 border border-[#f5b829]/30 flex items-center justify-center text-[#f5b829] hover:bg-[#f5b829]/20 transition-all active:scale-95"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              </button>
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Join</span>
-            </div>
-          )}
+          {/* Cluster Joined / Management */}
+          <div className="flex flex-col items-center flex-shrink-0 w-16">
+            <button
+              onClick={() => setIsClusterManagerOpen(true)}
+              className="p-2 text-slate-400 hover:text-blue-500 transition-colors flex flex-col items-center gap-1 group"
+              title="Cluster Management"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            </button>
+            <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">{user?.role === 'user' ? 'Cluster' : 'Manage'}</span>
+          </div>
+
+          {/* Support */}
+          <div className="flex flex-col items-center flex-shrink-0 w-16">
+            <button
+              onClick={() => setIsReportModalOpen(true)}
+              className="p-2 text-slate-400 hover:text-rose-500 transition-colors flex flex-col items-center gap-1 group"
+              title="Support & Reports"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
+            </button>
+            <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">Support</span>
+          </div>
         </div>
       </main>
 
