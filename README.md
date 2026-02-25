@@ -24,7 +24,7 @@ Coordinating bus pickups for training sessions can be stressful. Students often 
 
 ## Tech Stack
 - **Frontend**: Next.js 16 (App Router), Tailwind CSS 4.
-- **Backend**: Node.js, Express (Real-time in-memory state).
+- **Backend**: Node.js, Express (`db.json` for simulation state + MongoDB for auth users).
 - **APIs**: Google Maps JavaScript API, Google Directions API, Google Distance Matrix.
 
 ---
@@ -54,6 +54,9 @@ Create a `.env.local` in the root:
 ```env
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_key
 NEXT_PUBLIC_API_URL=http://localhost:3001
+MONGODB_URI=your_mongodb_connection_string
+MONGODB_DB_NAME=bus_tracker
+MONGODB_USERS_COLLECTION=users
 ```
 
 ### 4. Run the project
