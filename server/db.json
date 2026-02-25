@@ -26,11 +26,96 @@
       "capacity": 14,
       "createdAt": "2026-02-19T09:10:59.599Z",
       "passwordHash": "$2a$10$nIbG4bxuq1w5rAvhjqogXOsGcH3MEa1XcQlXBAe4AGKZMfPJhFci6"
+    },
+    {
+      "id": "7chlns16",
+      "name": "hi",
+      "email": "ok@example.com",
+      "passwordHash": "$2a$10$kAW/xdtLfMPdxrz6TA7KI..x09Vh9cHbMSJxCdpUty0QSokeDvUem",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-25T09:43:59.767Z"
+    },
+    {
+      "id": "0qjs0ve4",
+      "name": "Asmaa",
+      "email": "user@example.com",
+      "passwordHash": "$2a$10$K7iV7dyLPe4jwrN6.306nuWVVCfQNa3a9fMiRk/iOsq5mefNB.EhG",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-25T09:44:23.456Z"
+    },
+    {
+      "id": "khdrjwtv",
+      "name": "Asmaa Shreih",
+      "email": "profile_tester@example.com",
+      "passwordHash": "$2a$10$A4QXuBaDgxbcwtrl8Gvy0umAMm2ELkKiiawsYepjJcdsXlihf1VaW",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-25T09:49:28.246Z"
+    },
+    {
+      "id": "jyvolfyr",
+      "name": "Final Tester",
+      "email": "finaltester_v5@example.com",
+      "passwordHash": "$2a$10$tm8vfkFv.ij.ZUqeITjYVeFxsmYan3Dr7nj/zW3m9PF4htZL0btoK",
+      "role": "user",
+      "capacity": 0,
+      "createdAt": "2026-02-25T09:51:40.158Z"
+    },
+    {
+      "id": "5dijhdbd",
+      "name": "driver",
+      "email": "driver@example.com",
+      "passwordHash": "$2a$10$kxettR2vpTYbukCL/Xf2t.UMuX92fdKBUyCRD4MVKTm4GfujojlhO",
+      "role": "driver",
+      "capacity": 14,
+      "createdAt": "2026-02-25T09:59:51.492Z"
     }
   ],
-  "clusters": {},
+  "clusters": {
+    "weq41": {
+      "id": "weq41",
+      "name": "ok",
+      "driverId": "5dijhdbd",
+      "members": []
+    }
+  },
   "attendance": {},
-  "vanLocations": {},
-  "memberLocations": {},
+  "vanLocations": {
+    "5dijhdbd": {
+      "id": "5dijhdbd",
+      "lat": 33.620132437322965,
+      "lng": 35.43115044114258,
+      "isDriving": true,
+      "lastUpdated": "2026-02-25T10:17:58.382Z"
+    }
+  },
+  "memberLocations": {
+    "0qjs0ve4": {
+      "id": "0qjs0ve4",
+      "lat": 33.62025545131821,
+      "lng": 35.4311142300313,
+      "name": "Asmaa",
+      "arrived": false,
+      "lastUpdated": "2026-02-25T09:50:20.296Z"
+    },
+    "khdrjwtv": {
+      "id": "khdrjwtv",
+      "lat": 33.620215878299604,
+      "lng": 35.431129950251744,
+      "name": "Asmaa Shreih",
+      "arrived": false,
+      "lastUpdated": "2026-02-25T10:17:44.074Z"
+    },
+    "vaz5dcf3": {
+      "id": "vaz5dcf3",
+      "lat": 33.62022077353596,
+      "lng": 35.4312019929222,
+      "name": "Asmaa",
+      "arrived": false,
+      "lastUpdated": "2026-02-25T10:17:56.754Z"
+    }
+  },
   "reports": []
 }

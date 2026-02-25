@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.routes';
 import busRoutes from './routes/bus.routes';
+import clusterRoutes from './routes/cluster.routes';
 import { notFoundHandler, errorHandler } from './middlewares/error.middleware';
 
 const app = express();
@@ -12,6 +13,7 @@ app.use(express.json());
 // Preferred API prefixes
 app.use('/api/auth', authRoutes);
 app.use('/api/bus', busRoutes);
+app.use('/api/clusters', clusterRoutes);
 
 // Backward-compatible API prefixes used by the current frontend
 app.use('/api', authRoutes);

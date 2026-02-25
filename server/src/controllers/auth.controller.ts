@@ -29,7 +29,7 @@ export async function me(req: Request, res: Response, next: NextFunction): Promi
 
 export async function users(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const users = authService.listUsers();
+    const users = await authService.listUsers();
     res.json({ success: true, users });
   } catch (error) {
     next(error);

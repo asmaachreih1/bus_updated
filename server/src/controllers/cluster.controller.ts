@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { ClusterService } from '../services/cluster.service';
 import { AttendanceService } from '../services/attendance.service';
+import { Cluster } from '../models/Cluster';
+import { User } from '../models/User';
 
 export const ClusterController = {
     create: async (req: Request, res: Response) => {
@@ -23,16 +25,42 @@ export const ClusterController = {
         }
     },
 
+    getDriverCluster: async (req: Request, res: Response) => {
+        try {
+            const { driverId } = req.params;
+            const cluster = await ClusterService.getDriverCluster(driverId);
+            if (!cluster) return res.json({ cluster: null, members: [] });
+            const members = await ClusterService.getMembers(cluster.code);
+            res.json({ cluster, members });
+        } catch (error: any) {
+            res.status(400).json({ success: false, error: error.message });
+        }
+    },
+
+    getMemberCluster: async (req: Request, res: Response) => {
+        try {
+            const { userId } = req.params;
+            const user = await User.findOne({ id: userId });
+            if (!user || !user.clusterId) return res.json({ cluster: null });
+            const cluster = await Cluster.findOne({ code: user.clusterId });
+            res.json({ cluster });
+        } catch (error: any) {
+            res.status(400).json({ success: false, error: error.message });
+        }
+    },
+
     getInfo: async (req: Request, res: Response) => {
         try {
             const { driverId, userId, role } = req.query;
 
             let cluster: any = null;
             if (role === 'driver') {
-                cluster = await ClusterService.getDriverCluster(driverId as string);
+                cluster = await ClusterService.getDriverCluster(String(driverId));
             } else {
-                // Find cluster the user is a member of
-                // This is simplified, usually you'd check User.clusterId
+                const user = await User.findOne({ id: userId as string });
+                if (user?.clusterId) {
+                    cluster = await Cluster.findOne({ code: user.clusterId });
+                }
             }
 
             if (!cluster) return res.json({ success: false });

@@ -2,8 +2,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { JWT_SECRET } from '../config/env';
-import { readDB, writeDB } from '../utils/fileDB';
-import { DbUser, SafeUser, UserRole } from '../types/db';
+import { User } from '../models/User';
+import { SafeUser, UserRole } from '../types/db';
 
 class ServiceError extends Error {
   status: number;
@@ -23,20 +23,15 @@ function createUserId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function sanitizeUser(user: DbUser): SafeUser {
+function sanitizeUser(user: any): SafeUser {
   return {
-    id: user.id,
+    id: user.id || user._id.toString(),
     name: user.name,
     email: user.email,
     role: user.role,
     capacity: parseInt(String(user.capacity), 10) || 0,
+    clusterId: user.clusterId,
   };
-}
-
-function findUserByEmail(users: DbUser[], email: unknown): DbUser | null {
-  const normalizedEmail = normalizeEmail(email);
-  if (!normalizedEmail) return null;
-  return users.find((user) => normalizeEmail(user.email) === normalizedEmail) || null;
 }
 
 function parseCapacity(role: UserRole, capacity: unknown): number {
@@ -79,24 +74,24 @@ export async function signup(payload: SignupPayload): Promise<SafeUser> {
     throw new ServiceError(400, 'Invalid email');
   }
 
-  const db = readDB();
-  if (findUserByEmail(db.users, normalizedEmail)) {
+  const existingUser = await User.findOne({ email: normalizedEmail });
+  if (existingUser) {
     throw new ServiceError(409, 'Email already exists');
   }
 
-  const user: DbUser = {
+  const passwordHash = await bcrypt.hash(String(password), 10);
+
+  const newUser = new User({
     id: String(id || '').trim() || createUserId(),
     name: String(name).trim(),
     email: normalizedEmail,
-    passwordHash: await bcrypt.hash(String(password), 10),
+    passwordHash,
     role,
     capacity: parseCapacity(role, capacity),
-    createdAt: new Date().toISOString(),
-  };
+  });
 
-  db.users.push(user);
-  writeDB(db);
-  return sanitizeUser(user);
+  await newUser.save();
+  return sanitizeUser(newUser);
 }
 
 export async function login(payload: LoginPayload): Promise<{ user: SafeUser; token: string }> {
@@ -106,32 +101,28 @@ export async function login(payload: LoginPayload): Promise<{ user: SafeUser; to
     throw new ServiceError(400, 'Missing credentials');
   }
 
-  const db = readDB();
-  const user = findUserByEmail(db.users, email);
+  const normalizedEmail = normalizeEmail(email);
+  const user = await User.findOne({ email: normalizedEmail });
   if (!user) {
     throw new ServiceError(401, 'Invalid credentials');
   }
 
   let isPasswordValid = false;
-  let didMutate = false;
 
   if (user.passwordHash) {
     isPasswordValid = await bcrypt.compare(String(password), user.passwordHash);
   } else if (user.password) {
+    // Legacy support
     isPasswordValid = String(user.password) === String(password);
     if (isPasswordValid) {
       user.passwordHash = await bcrypt.hash(String(password), 10);
-      delete user.password;
-      didMutate = true;
+      user.password = undefined;
+      await user.save();
     }
   }
 
   if (!isPasswordValid) {
     throw new ServiceError(401, 'Invalid credentials');
-  }
-
-  if (didMutate) {
-    writeDB(db);
   }
 
   const safeUser = sanitizeUser(user);
@@ -144,7 +135,7 @@ export async function login(payload: LoginPayload): Promise<{ user: SafeUser; to
   return { user: safeUser, token };
 }
 
-export function listUsers(): SafeUser[] {
-  const db = readDB();
-  return db.users.map(sanitizeUser);
+export async function listUsers(): Promise<SafeUser[]> {
+  const users = await User.find({});
+  return users.map(user => sanitizeUser(user));
 }

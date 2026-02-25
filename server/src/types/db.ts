@@ -60,4 +60,5 @@ export interface SafeUser {
   email: string;
   role: UserRole;
   capacity: number;
+  clusterId?: string;
 }
