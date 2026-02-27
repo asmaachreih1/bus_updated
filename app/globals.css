@@ -1,59 +1,59 @@
 @import "tailwindcss";
 
 :root {
-  /* Logo-inspired Color Palette */
-  --amber: #f59e0b;
-  --amber-glow: rgba(245, 158, 11, 0.1);
-  --emerald: #10b981;
-  --emerald-glow: rgba(16, 185, 129, 0.1);
-  --blue: #2563eb;
-  --blue-glow: rgba(37, 99, 235, 0.1);
-
-  /* System Colors - Light Theme */
-  --background: #ffffff;
-  --foreground: #0f172a;
-  --card-bg: rgba(255, 255, 255, 0.8);
-  --card-border: rgba(0, 0, 0, 0.05);
-  --glass-bg: rgba(255, 255, 255, 0.9);
-  --glass-border: rgba(0, 0, 0, 0.08);
+  --background: #172432;
+  --foreground: #eaf2fa;
+  --muted: #5e6f83;
+  --line: rgba(255, 255, 255, 0.14);
+  --panel: rgba(255, 255, 255, 0.9);
+  --panel-strong: rgba(255, 255, 255, 0.96);
+  --brand: #0ea5a5;
+  --brand-strong: #0f766e;
+  --accent: #f59e0b;
+  --danger: #dc2626;
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 14%, rgba(14, 165, 165, 0.18), transparent 34%),
+    radial-gradient(circle at 90% 10%, rgba(245, 158, 11, 0.2), transparent 30%),
+    radial-gradient(circle at 50% 92%, rgba(59, 130, 246, 0.18), transparent 36%),
+    linear-gradient(180deg, #243546 0%, #1b2b3a 55%, #152331 100%);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
-  overflow: hidden;
+  font-family: var(--font-geist-sans), "Segoe UI", "Trebuchet MS", system-ui, sans-serif;
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Glassmorphism Utilities */
 .glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .glass-card {
-  background: var(--card-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--card-border);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 30px 80px -42px rgba(15, 31, 47, 0.45),
+    0 12px 30px -20px rgba(15, 31, 47, 0.35);
 }
 
-/* Premium Animations */
 @keyframes mesh-pulse {
-
   0%,
   100% {
-    opacity: 0.4;
+    opacity: 0.35;
     transform: scale(1);
   }
 
   50% {
-    opacity: 0.6;
-    transform: scale(1.05);
+    opacity: 0.52;
+    transform: scale(1.04);
   }
 }
 
@@ -62,25 +62,34 @@ body {
 }
 
 .mesh-gradient {
-  background-color: var(--background);
+  background-color: #1c2c3b;
   background-image:
-    radial-gradient(at 0% 0%, hsla(214, 95%, 95%, 1) 0, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(37, 98%, 95%, 1) 0, transparent 50%),
-    radial-gradient(at 50% 100%, hsla(160, 95%, 95%, 1) 0, transparent 50%);
+    radial-gradient(at 8% 8%, rgba(14, 165, 165, 0.2) 0, transparent 44%),
+    radial-gradient(at 94% 12%, rgba(245, 158, 11, 0.24) 0, transparent 38%),
+    radial-gradient(at 50% 96%, rgba(37, 99, 235, 0.18) 0, transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
 }
 
 .bus-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03' fill-rule='evenodd'%3E%3Cpath d='M0 0h40L0 40z'/%3E%3C/g%3E%3C/svg%3E");
+  background-image:
+    radial-gradient(circle at 12% 20%, rgba(255, 255, 255, 0.09) 0 2px, transparent 3px),
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.08) 0 2px, transparent 3px),
+    linear-gradient(to bottom, rgba(250, 204, 21, 0.42) 0 20px, transparent 20px 46px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.2) 0 16px, transparent 16px 44px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.2) 0 16px, transparent 16px 44px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 320px 220px, 340px 220px, 4px 46px, 3px 44px, 3px 44px, 30px 30px, 30px 30px;
+  background-position: 12% 12%, 84% 18%, 50% 0, 32% 0, 68% 0, 0 0, 0 0;
+  background-repeat: repeat, repeat, repeat-y, repeat-y, repeat-y, repeat, repeat;
 }
 
-/* RTL Helpers */
 [dir="rtl"] {
   text-align: right;
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 9px;
 }
 
 ::-webkit-scrollbar-track {
@@ -88,10 +97,25 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(15, 31, 47, 0.18);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(15, 31, 47, 0.3);
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.float-up {
+  animation: float-up 420ms ease-out both;
 }

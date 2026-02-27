@@ -77,6 +77,12 @@ export default function Home() {
 
     const shouldOpenMap =
       openMapFromQuery || sessionStorage.getItem('open_map_after_login') === '1';
+
+    if (!shouldOpenMap) {
+      router.replace('/profile');
+      return;
+    }
+
     if (shouldOpenMap) {
       sessionStorage.removeItem('open_map_after_login');
       setView('app');
@@ -84,14 +90,6 @@ export default function Home() {
         sessionStorage.setItem('open_map_after_login', '1');
         router.replace('/');
       }
-    }
-
-    // Splash Timeout
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    if (!shouldOpenMap) {
-      timer = setTimeout(() => {
-        setView('dashboard');
-      }, 2500);
     }
 
     // Geolocation Startup
@@ -110,9 +108,6 @@ export default function Home() {
     }
 
     return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
       }
@@ -280,7 +275,9 @@ export default function Home() {
 
   const logout = () => {
     localStorage.removeItem('tracker_user');
-    window.location.href = '/login';
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('open_map_after_login');
+    router.replace('/login');
   };
 
   if (!authChecked) {
@@ -538,6 +535,12 @@ export default function Home() {
             </button>
           )}
           <div className="flex gap-4">
+            <button
+              onClick={() => router.push('/profile')}
+              className="flex-1 py-5 glass rounded-[2rem] font-bold text-[10px] uppercase tracking-widest text-slate-400 hover:text-white transition-all border-white/5"
+            >
+              {t('common.profile')}
+            </button>
             <button
               onClick={() => setIsReportModalOpen(true)}
               className="flex-1 py-5 glass rounded-[2rem] font-bold text-[10px] uppercase tracking-widest text-slate-400 hover:text-white transition-all border-white/5"
