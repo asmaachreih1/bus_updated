@@ -50,6 +50,44 @@ type ResolveReportPayload = {
   reportId?: string;
 };
 
+type DispatchPayload = {
+  busId?: string;
+  driverId?: string;
+  shift?: string;
+};
+
+type ClearDispatchPayload = {
+  busId?: string;
+  driverId?: string;
+};
+
+type UpdateReportStatusPayload = {
+  reportId?: string;
+  status?: string;
+};
+
+function getTodayKey(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function normalizeReportStatus(status: unknown): string {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (!normalized) {
+    throw new ServiceError(400, 'status is required');
+  }
+
+  if (normalized === 'actioned') {
+    return 'resolved';
+  }
+
+  return normalized;
+}
+
+function normalizeShift(shift: unknown): string {
+  const normalized = String(shift || '').trim();
+  return normalized || 'Morning';
+}
+
 export function getVansState() {
   const db = readDB();
   return {
@@ -61,13 +99,21 @@ export function getVansState() {
 export function updateLocation(payload: UpdateLocationPayload) {
   const { van_id, lat, lng, isDriving } = payload || {};
   const db = readDB();
+  const vanId = String(van_id || '').trim();
 
-  db.vanLocations[String(van_id)] = {
-    id: String(van_id),
+  if (!vanId) {
+    throw new ServiceError(400, 'van_id is required');
+  }
+
+  const existingVan = db.vanLocations[vanId] || {};
+
+  db.vanLocations[vanId] = {
+    ...existingVan,
+    id: vanId,
     lat: parseFloat(String(lat)),
     lng: parseFloat(String(lng)),
     isDriving: !!isDriving,
-    lastUpdated: new Date(),
+    lastUpdated: new Date().toISOString(),
   };
 
   writeDB(db);
@@ -130,7 +176,7 @@ export function joinCluster(payload: JoinClusterPayload) {
 export function setAttendance(payload: AttendancePayload) {
   const { userId, status } = payload || {};
   const db = readDB();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayKey();
 
   if (!db.attendance[today]) db.attendance[today] = {};
   db.attendance[today][String(userId)] = String(status || '');
@@ -141,8 +187,80 @@ export function setAttendance(payload: AttendancePayload) {
 
 export function getAttendance() {
   const db = readDB();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayKey();
   return db.attendance[today] || {};
+}
+
+export function getDispatchAssignments() {
+  const db = readDB();
+  return Object.values(db.dispatchAssignments || {});
+}
+
+export function assignDispatch(payload: DispatchPayload) {
+  const { busId, driverId, shift } = payload || {};
+  const normalizedBusId = String(busId || '').trim();
+  const normalizedDriverId = String(driverId || '').trim();
+  const normalizedShift = normalizeShift(shift);
+
+  if (!normalizedBusId || !normalizedDriverId) {
+    throw new ServiceError(400, 'busId and driverId are required');
+  }
+
+  const db = readDB();
+
+  Object.keys(db.dispatchAssignments).forEach((assignedBusId) => {
+    const assignment = db.dispatchAssignments[assignedBusId];
+    if (String(assignment?.driverId || '') === normalizedDriverId && assignedBusId !== normalizedBusId) {
+      delete db.dispatchAssignments[assignedBusId];
+    }
+  });
+
+  db.dispatchAssignments[normalizedBusId] = {
+    busId: normalizedBusId,
+    driverId: normalizedDriverId,
+    shift: normalizedShift,
+    assignedAt: new Date().toISOString(),
+  };
+
+  const today = getTodayKey();
+  if (!db.attendance[today]) {
+    db.attendance[today] = {};
+  }
+  db.attendance[today][normalizedDriverId] = `on-duty ${normalizedShift}`;
+
+  writeDB(db);
+  return { success: true, assignment: db.dispatchAssignments[normalizedBusId] };
+}
+
+export function clearDispatch(payload: ClearDispatchPayload) {
+  const { busId, driverId } = payload || {};
+  const normalizedBusId = String(busId || '').trim();
+  const normalizedDriverId = String(driverId || '').trim();
+
+  if (!normalizedBusId && !normalizedDriverId) {
+    throw new ServiceError(400, 'busId or driverId is required');
+  }
+
+  const db = readDB();
+  const removedBusIds = new Set<string>();
+
+  if (normalizedBusId && db.dispatchAssignments[normalizedBusId]) {
+    delete db.dispatchAssignments[normalizedBusId];
+    removedBusIds.add(normalizedBusId);
+  }
+
+  if (normalizedDriverId) {
+    Object.keys(db.dispatchAssignments).forEach((assignedBusId) => {
+      const assignment = db.dispatchAssignments[assignedBusId];
+      if (String(assignment?.driverId || '') === normalizedDriverId) {
+        delete db.dispatchAssignments[assignedBusId];
+        removedBusIds.add(assignedBusId);
+      }
+    });
+  }
+
+  writeDB(db);
+  return { success: true, clearedBusIds: Array.from(removedBusIds) };
 }
 
 export function createReport(payload: ReportPayload) {
@@ -168,17 +286,31 @@ export function getReports() {
   return db.reports || [];
 }
 
-export function resolveReport(payload: ResolveReportPayload) {
-  const { reportId } = payload || {};
-  const db = readDB();
-  const report = db.reports.find((item) => item.id === reportId);
+export function updateReportStatus(payload: UpdateReportStatusPayload) {
+  const { reportId, status } = payload || {};
+  const normalizedReportId = String(reportId || '').trim();
+  const normalizedStatus = normalizeReportStatus(status);
 
-  if (report) {
-    report.status = 'resolved';
-    writeDB(db);
+  if (!normalizedReportId) {
+    throw new ServiceError(400, 'reportId is required');
   }
 
-  return { success: true };
+  const db = readDB();
+  const report = db.reports.find((item) => item.id === normalizedReportId);
+
+  if (!report) {
+    throw new ServiceError(404, 'Report not found');
+  }
+
+  report.status = normalizedStatus;
+  writeDB(db);
+
+  return { success: true, report };
+}
+
+export function resolveReport(payload: ResolveReportPayload) {
+  const { reportId } = payload || {};
+  return updateReportStatus({ reportId, status: 'resolved' });
 }
 
 export function resetSimulation() {

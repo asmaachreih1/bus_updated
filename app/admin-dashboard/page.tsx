@@ -102,6 +102,13 @@ type ApiReport = {
   status?: string;
 };
 
+type ApiDispatchAssignment = {
+  busId: string;
+  driverId: string;
+  shift?: string;
+  assignedAt?: string;
+};
+
 type AttendanceMap = Record<string, string>;
 
 const EMPTY_DASHBOARD: DashboardState = {
@@ -140,12 +147,16 @@ function getIncidentSeverity(type: string | undefined): IncidentSeverity {
   return "low";
 }
 
-function getShiftFromAttendance(attendanceStatus: string | undefined): Shift | null {
-  const normalized = String(attendanceStatus || "").toLowerCase();
+function getShiftFromText(value: string | undefined): Shift | null {
+  const normalized = String(value || "").toLowerCase();
   if (normalized.includes("morning")) return "Morning";
   if (normalized.includes("afternoon")) return "Afternoon";
   if (normalized.includes("night")) return "Night";
   return null;
+}
+
+function getShiftFromAttendance(attendanceStatus: string | undefined): Shift | null {
+  return getShiftFromText(attendanceStatus);
 }
 
 function getDriverStatus(attendanceStatus: string | undefined, hasActiveBus: boolean): DriverStatus {
@@ -176,6 +187,7 @@ function buildDashboardState(
   members: ApiMember[],
   reports: ApiReport[],
   attendance: AttendanceMap,
+  dispatchAssignments: ApiDispatchAssignment[],
 ): DashboardState {
   const usersById = new Map(users.map((user) => [String(user.id), user]));
   const driverUsers = users.some((user) => user.role === "driver")
@@ -191,9 +203,28 @@ function buildDashboardState(
         }));
   const rosterUsers = driverUsers.length > 0 ? driverUsers : users.length > 0 ? users : fallbackUsersFromMembers;
 
+  const rosterUsersById = new Map(rosterUsers.map((user) => [String(user.id), user]));
+  const normalizedAssignments = dispatchAssignments
+    .map((assignment) => ({
+      busId: String(assignment.busId || "").trim(),
+      driverId: String(assignment.driverId || "").trim(),
+      shift: String(assignment.shift || "").trim(),
+    }))
+    .filter((assignment) => assignment.busId && assignment.driverId);
+
+  const assignmentByBusId = new Map(normalizedAssignments.map((assignment) => [assignment.busId, assignment]));
+  const assignmentByDriverId = new Map(
+    normalizedAssignments.map((assignment) => [assignment.driverId, assignment]),
+  );
+
   const buses: Bus[] = vans.map((van) => {
     const vanId = String(van.id);
-    const linkedDriver = rosterUsers.find((driver) => String(driver.id) === vanId);
+    const dispatchAssignment = assignmentByBusId.get(vanId);
+    const fallbackDriver = rosterUsersById.get(vanId);
+    const linkedDriverId = dispatchAssignment?.driverId || fallbackDriver?.id || null;
+    const linkedDriver = linkedDriverId
+      ? usersById.get(String(linkedDriverId)) || rosterUsersById.get(String(linkedDriverId))
+      : undefined;
     const capacity = Math.max(0, Number(linkedDriver?.capacity || 14));
     return {
       id: vanId,
@@ -202,18 +233,48 @@ function buildDashboardState(
       capacity,
       occupancy: Math.max(0, Number(van.occupancy || 0)),
       status: van.isDriving ? "active" : "idle",
-      driverId: linkedDriver ? vanId : null,
+      driverId: linkedDriverId ? String(linkedDriverId) : null,
     };
   });
 
+  const busesById = new Map(buses.map((bus) => [bus.id, bus]));
+
+  normalizedAssignments.forEach((assignment) => {
+    const existingBus = busesById.get(assignment.busId);
+    if (existingBus) {
+      busesById.set(assignment.busId, { ...existingBus, driverId: assignment.driverId });
+      return;
+    }
+
+    const linkedDriver =
+      usersById.get(assignment.driverId) || rosterUsersById.get(assignment.driverId);
+    busesById.set(assignment.busId, {
+      id: assignment.busId,
+      plateNumber: `ID-${assignment.busId.slice(0, 6).toUpperCase()}`,
+      routeName: `Assigned Bus ${assignment.busId.slice(0, 6).toUpperCase()}`,
+      capacity: Math.max(0, Number(linkedDriver?.capacity || 14)),
+      occupancy: 0,
+      status: "idle",
+      driverId: assignment.driverId,
+    });
+  });
+
+  const mergedBuses = Array.from(busesById.values());
   const activeBusByDriverId = new Map(
-    buses.filter((bus) => bus.driverId).map((bus) => [String(bus.driverId), bus]),
+    mergedBuses.filter((bus) => bus.driverId).map((bus) => [String(bus.driverId), bus]),
   );
 
   const drivers: Driver[] = rosterUsers.map((user) => {
     const userId = String(user.id);
-    const activeBus = activeBusByDriverId.get(userId);
+    const assignedBusIdFromDispatch = assignmentByDriverId.get(userId)?.busId || null;
+    const activeBus = assignedBusIdFromDispatch
+      ? busesById.get(assignedBusIdFromDispatch) || null
+      : activeBusByDriverId.get(userId) || null;
     const attendanceStatus = attendance[userId];
+    const shift =
+      getShiftFromText(assignmentByDriverId.get(userId)?.shift) ||
+      getShiftFromAttendance(attendanceStatus);
+
     return {
       id: userId,
       name: user.name || user.email || userId,
@@ -221,8 +282,8 @@ function buildDashboardState(
       experienceYears: getExperienceYears(user.createdAt),
       safetyScore: getSafetyScore(userId, reports),
       status: getDriverStatus(attendanceStatus, Boolean(activeBus)),
-      assignedBusId: activeBus?.id || null,
-      shift: getShiftFromAttendance(attendanceStatus),
+      assignedBusId: assignedBusIdFromDispatch || activeBus?.id || null,
+      shift,
     };
   });
 
@@ -271,7 +332,7 @@ function buildDashboardState(
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 30);
 
-  return { drivers, buses, feedbacks, incidents, activities };
+  return { drivers, buses: mergedBuses, feedbacks, incidents, activities };
 }
 
 function formatDate(date: string): string {
@@ -290,6 +351,22 @@ function getNextActivityId(activities: Activity[]): string {
   return `ACT-${nextNumber}`;
 }
 
+async function parseErrorMessage(response: Response, fallbackMessage: string): Promise<string> {
+  try {
+    const payload = (await response.json()) as { error?: unknown; message?: unknown };
+    if (typeof payload.error === "string" && payload.error.trim()) {
+      return payload.error;
+    }
+    if (typeof payload.message === "string" && payload.message.trim()) {
+      return payload.message;
+    }
+  } catch {
+    return fallbackMessage;
+  }
+
+  return fallbackMessage;
+}
+
 export default function AdminPage() {
   const [dashboard, setDashboard] = useState<DashboardState>(EMPTY_DASHBOARD);
   const [assignmentDriverId, setAssignmentDriverId] = useState("");
@@ -303,19 +380,27 @@ export default function AdminPage() {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-  const loadLiveDashboard = useCallback(async (showRefreshToast = false): Promise<void> => {
+  const loadLiveDashboard = useCallback(async (
+    options?: { showRefreshToast?: boolean; silent?: boolean },
+  ): Promise<void> => {
+    const showRefreshToast = options?.showRefreshToast ?? false;
+    const silent = options?.silent ?? false;
+
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       setLoadError("");
 
       const token = typeof window !== "undefined" ? window.localStorage.getItem("token") : null;
       const userHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
 
-      const [usersRes, vansRes, reportsRes, attendanceRes] = await Promise.all([
+      const [usersRes, vansRes, reportsRes, attendanceRes, dispatchRes] = await Promise.all([
         token ? fetch(`${apiUrl}/api/users`, { headers: userHeaders }) : Promise.resolve(null),
         fetch(`${apiUrl}/api/bus/vans`),
         fetch(`${apiUrl}/api/bus/reports`),
         fetch(`${apiUrl}/api/bus/attendance`),
+        fetch(`${apiUrl}/api/bus/dispatch`),
       ]);
 
       if (usersRes && !usersRes.ok && usersRes.status !== 401) {
@@ -324,22 +409,32 @@ export default function AdminPage() {
       if (!vansRes.ok) throw new Error("Failed to load vans.");
       if (!reportsRes.ok) throw new Error("Failed to load reports.");
       if (!attendanceRes.ok) throw new Error("Failed to load attendance.");
+      if (!dispatchRes.ok) throw new Error("Failed to load assignments.");
 
-      const usersPayload = usersRes ? await usersRes.json() : { users: [] };
-      const vansPayload = await vansRes.json();
-      const reportsPayload = await reportsRes.json();
-      const attendancePayload = await attendanceRes.json();
+      const [usersPayload, vansPayload, reportsPayload, attendancePayload, dispatchPayload] =
+        await Promise.all([
+          usersRes ? usersRes.json() : Promise.resolve({ users: [] }),
+          vansRes.json(),
+          reportsRes.json(),
+          attendanceRes.json(),
+          dispatchRes.json(),
+        ]);
 
       const users = Array.isArray(usersPayload?.users) ? (usersPayload.users as ApiUser[]) : [];
       const vans = Array.isArray(vansPayload?.vans) ? (vansPayload.vans as ApiVan[]) : [];
       const members = Array.isArray(vansPayload?.members) ? (vansPayload.members as ApiMember[]) : [];
       const reports = Array.isArray(reportsPayload) ? (reportsPayload as ApiReport[]) : [];
+      const dispatchAssignments = Array.isArray(dispatchPayload?.assignments)
+        ? (dispatchPayload.assignments as ApiDispatchAssignment[])
+        : [];
       const attendance =
         attendancePayload && typeof attendancePayload === "object"
           ? (attendancePayload as AttendanceMap)
           : {};
 
-      setDashboard(buildDashboardState(users, vans, members, reports, attendance));
+      setDashboard(
+        buildDashboardState(users, vans, members, reports, attendance, dispatchAssignments),
+      );
 
       if (usersRes?.status === 401) {
         setLoadError("Login required to load the complete user list.");
@@ -349,12 +444,22 @@ export default function AdminPage() {
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Unable to load live admin data.");
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, [apiUrl]);
 
   useEffect(() => {
     void loadLiveDashboard();
+  }, [loadLiveDashboard]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void loadLiveDashboard({ silent: true });
+    }, 12000);
+
+    return () => window.clearInterval(intervalId);
   }, [loadLiveDashboard]);
 
   const driversById = useMemo(() => {
@@ -437,7 +542,7 @@ export default function AdminPage() {
     });
   }
 
-  function handleAssignDriver(event: FormEvent<HTMLFormElement>): void {
+  async function handleAssignDriver(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!assignmentDriverId || !assignmentBusId) {
       setMessage("Select both a driver and bus before assigning.");
@@ -457,120 +562,116 @@ export default function AdminPage() {
       return;
     }
 
-    setDashboard((prev) => {
-      const currentBusForDriver = prev.buses.find((item) => item.driverId === driver.id);
-      const currentDriverForBus = prev.drivers.find((item) => item.id === bus.driverId);
-
-      const nextDrivers = prev.drivers.map((item) => {
-        if (item.id === driver.id) {
-          return {
-            ...item,
-            assignedBusId: bus.id,
-            shift: assignmentShift,
-            status: "on-duty" as DriverStatus,
-          };
-        }
-        if (currentDriverForBus && item.id === currentDriverForBus.id && item.id !== driver.id) {
-          return {
-            ...item,
-            assignedBusId: null,
-            shift: null,
-            status: "available" as DriverStatus,
-          };
-        }
-        if (currentBusForDriver && item.id === driver.id && currentBusForDriver.id !== bus.id) {
-          return { ...item, assignedBusId: bus.id };
-        }
-        return item;
-      });
-
-      const nextBuses = prev.buses.map((item) => {
-        if (item.id === bus.id) {
-          return { ...item, driverId: driver.id, status: "active" as Bus["status"] };
-        }
-        if (item.driverId === driver.id && item.id !== bus.id) {
-          return { ...item, driverId: null, status: "idle" as Bus["status"] };
-        }
-        return item;
-      });
-
-      return { ...prev, drivers: nextDrivers, buses: nextBuses };
-    });
-
-    pushActivity(`Assigned ${driver.name} (${driver.id}) to ${bus.routeName} (${bus.id}) for ${assignmentShift} shift.`);
-    setMessage(`Assigned ${driver.name} to ${bus.routeName}.`);
-  }
-
-  function updateFeedbackStatus(feedbackId: string, status: FeedbackStatus): void {
-    setDashboard((prev) => ({
-      ...prev,
-      feedbacks: prev.feedbacks.map((item) => (item.id === feedbackId ? { ...item, status } : item)),
-    }));
-
-    if (status === "actioned") {
-      void fetch(`${apiUrl}/api/bus/reports/resolve`, {
+    try {
+      const dispatchRes = await fetch(`${apiUrl}/api/bus/dispatch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId: feedbackId }),
-      }).then(() => {
-        setDashboard((prev) => ({
-          ...prev,
-          incidents: prev.incidents.map((item) =>
-            item.id === feedbackId ? { ...item, status: "resolved" } : item,
-          ),
-        }));
+        body: JSON.stringify({
+          driverId: driver.id,
+          busId: bus.id,
+          shift: assignmentShift,
+        }),
       });
-    }
 
-    pushActivity(`Feedback ${feedbackId} marked as ${status}.`);
+      if (!dispatchRes.ok) {
+        setMessage(await parseErrorMessage(dispatchRes, "Unable to save dispatch assignment."));
+        return;
+      }
+
+      await loadLiveDashboard({ silent: true });
+      pushActivity(
+        `Assigned ${driver.name} (${driver.id}) to ${bus.routeName} (${bus.id}) for ${assignmentShift} shift.`,
+      );
+      setMessage(`Assigned ${driver.name} to ${bus.routeName}.`);
+      setAssignmentDriverId("");
+      setAssignmentBusId("");
+    } catch {
+      setMessage("Unable to save dispatch assignment.");
+    }
   }
 
-  function updateDriverStatus(driverId: string, status: DriverStatus): void {
-    void fetch(`${apiUrl}/api/bus/attendance`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: driverId, status }),
-    });
+  async function updateFeedbackStatus(feedbackId: string, status: FeedbackStatus): Promise<void> {
+    try {
+      const updateRes = await fetch(`${apiUrl}/api/bus/reports/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId: feedbackId, status }),
+      });
 
-    setDashboard((prev) => ({
-      ...prev,
-      drivers: prev.drivers.map((item) => {
-        if (item.id !== driverId) {
-          return item;
-        }
-        if (status === "off-duty") {
-          return { ...item, status, assignedBusId: null, shift: null };
-        }
-        return { ...item, status };
-      }),
-      buses:
-        status === "off-duty"
-          ? prev.buses.map((bus) => (bus.driverId === driverId ? { ...bus, driverId: null, status: "idle" } : bus))
-          : prev.buses,
-    }));
+      if (!updateRes.ok) {
+        setMessage(await parseErrorMessage(updateRes, "Unable to update feedback status."));
+        return;
+      }
 
+      await loadLiveDashboard({ silent: true });
+      pushActivity(`Feedback ${feedbackId} marked as ${status}.`);
+      setMessage(`Feedback ${feedbackId} updated.`);
+    } catch {
+      setMessage("Unable to update feedback status.");
+    }
+  }
+
+  async function updateDriverStatus(driverId: string, status: DriverStatus): Promise<void> {
     const driver = driversById.get(driverId);
-    pushActivity(`Driver ${driver ? driver.name : driverId} status set to ${status}.`);
-  }
+    const attendanceStatus =
+      status === "on-duty" && driver?.shift ? `on-duty ${driver.shift}` : status;
 
-  function updateIncidentStatus(incidentId: string, status: IncidentStatus): void {
-    if (status === "resolved") {
-      void fetch(`${apiUrl}/api/bus/reports/resolve`, {
+    try {
+      const attendanceRes = await fetch(`${apiUrl}/api/bus/attendance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId: incidentId }),
+        body: JSON.stringify({ userId: driverId, status: attendanceStatus }),
       });
-    }
 
-    setDashboard((prev) => ({
-      ...prev,
-      incidents: prev.incidents.map((item) => (item.id === incidentId ? { ...item, status } : item)),
-    }));
-    pushActivity(`Incident ${incidentId} updated to ${status}.`);
+      if (!attendanceRes.ok) {
+        setMessage(await parseErrorMessage(attendanceRes, "Unable to update driver status."));
+        return;
+      }
+
+      if (status === "off-duty") {
+        const clearDispatchRes = await fetch(`${apiUrl}/api/bus/dispatch/clear`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ driverId }),
+        });
+
+        if (!clearDispatchRes.ok) {
+          setMessage(await parseErrorMessage(clearDispatchRes, "Unable to clear bus assignment."));
+          return;
+        }
+      }
+
+      await loadLiveDashboard({ silent: true });
+      pushActivity(`Driver ${driver ? driver.name : driverId} status set to ${status}.`);
+      setMessage(`Driver ${driver ? driver.name : driverId} updated to ${status}.`);
+    } catch {
+      setMessage("Unable to update driver status.");
+    }
+  }
+
+  async function updateIncidentStatus(incidentId: string, status: IncidentStatus): Promise<void> {
+    try {
+      const updateRes = await fetch(`${apiUrl}/api/bus/reports/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId: incidentId, status }),
+      });
+
+      if (!updateRes.ok) {
+        setMessage(await parseErrorMessage(updateRes, "Unable to update incident status."));
+        return;
+      }
+
+      await loadLiveDashboard({ silent: true });
+      pushActivity(`Incident ${incidentId} updated to ${status}.`);
+      setMessage(`Incident ${incidentId} updated to ${status}.`);
+    } catch {
+      setMessage("Unable to update incident status.");
+    }
   }
 
   function resetDashboard(): void {
-    void loadLiveDashboard(true);
+    void loadLiveDashboard({ showRefreshToast: true });
     setAssignmentDriverId("");
     setAssignmentBusId("");
     setFeedbackFilter("all");

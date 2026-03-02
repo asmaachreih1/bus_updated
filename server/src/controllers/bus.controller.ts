@@ -64,6 +64,33 @@ export function getAttendance(req: Request, res: Response, next: NextFunction): 
   }
 }
 
+export function getDispatchAssignments(req: Request, res: Response, next: NextFunction): void {
+  try {
+    const assignments = busService.getDispatchAssignments();
+    res.json({ success: true, assignments });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function assignDispatch(req: Request, res: Response, next: NextFunction): void {
+  try {
+    const result = busService.assignDispatch(req.body);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function clearDispatch(req: Request, res: Response, next: NextFunction): void {
+  try {
+    const result = busService.clearDispatch(req.body);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export function createReport(req: Request, res: Response, next: NextFunction): void {
   try {
     const result = busService.createReport(req.body);
@@ -85,6 +112,15 @@ export function getReports(req: Request, res: Response, next: NextFunction): voi
 export function resolveReport(req: Request, res: Response, next: NextFunction): void {
   try {
     const result = busService.resolveReport(req.body);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function updateReportStatus(req: Request, res: Response, next: NextFunction): void {
+  try {
+    const result = busService.updateReportStatus(req.body);
     res.json(result);
   } catch (error) {
     next(error);

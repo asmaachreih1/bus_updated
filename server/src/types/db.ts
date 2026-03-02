@@ -60,6 +60,13 @@ export interface ReportItem {
   status: string;
 }
 
+export interface DispatchAssignment {
+  busId: string;
+  driverId: string;
+  shift: string;
+  assignedAt: Date | string;
+}
+
 export interface DbData {
   users: DbUser[];
   clusters: Record<string, Cluster>;
@@ -67,6 +74,7 @@ export interface DbData {
   vanLocations: Record<string, VanLocation>;
   memberLocations: Record<string, MemberLocation>;
   reports: ReportItem[];
+  dispatchAssignments: Record<string, DispatchAssignment>;
 }
 
 export interface SafeUser {

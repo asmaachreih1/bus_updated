@@ -15,6 +15,7 @@ export function createInitialDB(): DbData {
     vanLocations: {},
     memberLocations: {},
     reports: [],
+    dispatchAssignments: {},
   };
 }
 
@@ -42,6 +43,12 @@ function normalizeDB(input: unknown): DbData {
     vanLocations: db.vanLocations && typeof db.vanLocations === 'object' && !Array.isArray(db.vanLocations) ? db.vanLocations : {},
     memberLocations: db.memberLocations && typeof db.memberLocations === 'object' && !Array.isArray(db.memberLocations) ? db.memberLocations : {},
     reports: Array.isArray(db.reports) ? db.reports : [],
+    dispatchAssignments:
+      db.dispatchAssignments &&
+      typeof db.dispatchAssignments === 'object' &&
+      !Array.isArray(db.dispatchAssignments)
+        ? db.dispatchAssignments
+        : {},
   };
 }
 
