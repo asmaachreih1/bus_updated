@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { JWT_SECRET } from '../config/env';
-import { User } from '../models/User';
+import { supabase } from '../config/supabase';
 import { SafeUser, UserRole } from '../types/db';
 
 class ServiceError extends Error {
@@ -12,6 +12,11 @@ class ServiceError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+function handleDbError(err: any): never {
+  console.error('Database Error:', err);
+  throw new ServiceError(500, err.message || 'An internal database error occurred');
 }
 
 function normalizeEmail(email: unknown): string {
@@ -25,12 +30,12 @@ function createUserId(): string {
 
 function sanitizeUser(user: any): SafeUser {
   return {
-    id: user.id || user._id.toString(),
+    id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
     capacity: parseInt(String(user.capacity), 10) || 0,
-    clusterId: user.clusterId,
+    clusterId: user.cluster_id,
   };
 }
 
@@ -58,7 +63,7 @@ export async function signup(payload: SignupPayload): Promise<SafeUser> {
   const { id, name, role, email, password, capacity } = payload || {};
 
   if (!name || !email || !password || !role) {
-    throw new ServiceError(400, 'Missing required fields');
+    throw new ServiceError(400, 'Please provide all required fields (Name, Email, Password, Role)');
   }
 
   if (String(password).length < 6) {
@@ -74,55 +79,71 @@ export async function signup(payload: SignupPayload): Promise<SafeUser> {
     throw new ServiceError(400, 'Invalid email');
   }
 
-  const existingUser = await User.findOne({ email: normalizedEmail });
+  // Check if user exists
+  const { data: existingUser, error: checkError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .single();
+
+  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows found"
+    handleDbError(checkError);
+  }
+
   if (existingUser) {
-    throw new ServiceError(409, 'Email already exists');
+    throw new ServiceError(409, 'An account with this email already exists');
   }
 
   const passwordHash = await bcrypt.hash(String(password), 10);
 
-  const newUser = new User({
+  const newUser = {
     id: String(id || '').trim() || createUserId(),
     name: String(name).trim(),
     email: normalizedEmail,
-    passwordHash,
+    password_hash: passwordHash,
     role,
     capacity: parseCapacity(role, capacity),
-  });
+  };
 
-  await newUser.save();
-  return sanitizeUser(newUser);
+  const { data, error } = await supabase
+    .from('users')
+    .insert([newUser])
+    .select()
+    .single();
+
+  if (error) {
+    handleDbError(error);
+  }
+
+  return sanitizeUser(data);
 }
 
 export async function login(payload: LoginPayload): Promise<{ user: SafeUser; token: string }> {
   const { email, password } = payload || {};
 
   if (!email || !password) {
-    throw new ServiceError(400, 'Missing credentials');
+    throw new ServiceError(400, 'Email and Password are required for login');
   }
 
   const normalizedEmail = normalizeEmail(email);
-  const user = await User.findOne({ email: normalizedEmail });
-  if (!user) {
-    throw new ServiceError(401, 'Invalid credentials');
-  }
 
-  let isPasswordValid = false;
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', normalizedEmail)
+    .single();
 
-  if (user.passwordHash) {
-    isPasswordValid = await bcrypt.compare(String(password), user.passwordHash);
-  } else if (user.password) {
-    // Legacy support
-    isPasswordValid = String(user.password) === String(password);
-    if (isPasswordValid) {
-      user.passwordHash = await bcrypt.hash(String(password), 10);
-      user.password = undefined;
-      await user.save();
+  if (error) {
+    if (error.code === 'PGRST116') {
+      throw new ServiceError(401, 'No account found with this email address');
     }
+    handleDbError(error);
   }
+
+  const isPasswordValid = await bcrypt.compare(String(password), user.password_hash);
 
   if (!isPasswordValid) {
-    throw new ServiceError(401, 'Invalid credentials');
+    throw new ServiceError(401, 'Incorrect password. Please try again.');
   }
 
   const safeUser = sanitizeUser(user);
@@ -136,6 +157,14 @@ export async function login(payload: LoginPayload): Promise<{ user: SafeUser; to
 }
 
 export async function listUsers(): Promise<SafeUser[]> {
-  const users = await User.find({});
-  return users.map(user => sanitizeUser(user));
+  const { data, error } = await supabase
+    .from('users')
+    .select('*');
+
+  if (error) {
+    handleDbError(error);
+  }
+
+  return (data || []).map(user => sanitizeUser(user));
 }
+

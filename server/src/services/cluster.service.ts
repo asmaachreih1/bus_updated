@@ -1,53 +1,69 @@
-import { Cluster } from '../models/Cluster';
-import { User } from '../models/User';
+import { supabase } from '../config/supabase';
 
 export const ClusterService = {
-    create: async (name: string, driverId: string) => {
-        // Generate unique 6-digit code
-        let code = '';
-        let exists = true;
-        while (exists) {
-            code = Math.random().toString(36).substring(2, 8).toUpperCase();
-            const existing = await Cluster.findOne({ code });
-            if (!existing) exists = false;
-        }
+    create: async (payload: { name: string; driverId: string; code: string }) => {
+        const { data, error } = await supabase
+            .from('clusters')
+            .insert([{
+                name: payload.name,
+                driver_id: payload.driverId,
+                code: payload.code
+            }])
+            .select()
+            .single();
 
-        const driver = await User.findOne({ id: driverId });
-        const capacity = driver?.capacity || 12;
-
-        const newCluster = new Cluster({ name, driverId, code, capacity });
-        await newCluster.save();
-
-        // Update driver's clusterId
-        await User.findOneAndUpdate({ id: driverId }, { clusterId: code });
-
-        return newCluster;
+        if (error) throw error;
+        return data;
     },
 
     join: async (code: string, userId: string) => {
-        const cluster = await Cluster.findOne({ code });
-        if (!cluster) throw new Error('Cluster not found');
+        // Check if cluster exists
+        const { data: cluster, error: clusterError } = await supabase
+            .from('clusters')
+            .select('*')
+            .eq('code', code)
+            .single();
 
-        if (!cluster.members.includes(userId)) {
-            cluster.members.push(userId);
-            await cluster.save();
-        }
+        if (clusterError) throw new Error('Cluster not found');
 
         // Update user's clusterId
-        await User.findOneAndUpdate({ id: userId }, { clusterId: code });
+        const { error: userError } = await supabase
+            .from('users')
+            .update({ cluster_id: code })
+            .eq('id', userId);
+
+        if (userError) throw userError;
 
         return cluster;
     },
 
     getDriverCluster: async (driverId: string) => {
-        return await Cluster.findOne({ driverId });
+        const { data, error } = await supabase
+            .from('clusters')
+            .select('*')
+            .eq('driver_id', driverId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data;
     },
 
     getMembers: async (code: string) => {
-        const cluster = await Cluster.findOne({ code });
-        if (!cluster) return [];
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('cluster_id', code);
 
-        // Fetch user details for members
-        return await User.find({ id: { $in: cluster.members } });
+        if (error) throw error;
+        return data || [];
+    },
+
+    listAll: async () => {
+        const { data, error } = await supabase
+            .from('clusters')
+            .select('*');
+
+        if (error) throw error;
+        return data || [];
     }
 };

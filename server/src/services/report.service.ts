@@ -1,20 +1,41 @@
-import { Report } from '../models/Report';
+import { supabase } from '../config/supabase';
 
 export const ReportService = {
-    submit: async (reportData: any) => {
-        const report = new Report({
-            ...reportData,
-            id: Math.random().toString(36).substring(7),
-            timestamp: new Date()
-        });
-        return await report.save();
+    submit: async (payload: { userId: string; type: string; message: string; userName?: string }) => {
+        const { data, error } = await supabase
+            .from('reports')
+            .insert([{
+                user_id: payload.userId,
+                type: payload.type,
+                message: payload.message,
+                user_name: payload.userName
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     },
 
     getAll: async () => {
-        return await Report.find({}).sort({ timestamp: -1 });
+        const { data, error } = await supabase
+            .from('reports')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data || [];
     },
 
     resolve: async (reportId: string) => {
-        return await Report.findOneAndUpdate({ id: reportId }, { status: 'resolved' });
+        const { data, error } = await supabase
+            .from('reports')
+            .update({ status: 'resolved' })
+            .eq('id', reportId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     }
 };

@@ -5,8 +5,8 @@ import { ReportService } from '../services/report.service';
 export const LocationController = {
     update: async (req: Request, res: Response) => {
         try {
-            const { driverId, lat, lng, isDriving } = req.body;
-            const location = await LocationService.update(driverId, lat, lng, isDriving);
+            const { driverId, lat, lng } = req.body;
+            const location = await LocationService.update(driverId, lat, lng);
             res.json({ success: true, location });
         } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });

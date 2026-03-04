@@ -229,7 +229,7 @@ export default function Login() {
                 className={`ml-2 text-slate-900 border-b border-slate-200 hover:border-slate-800 transition-all font-black ${isRTL ? 'mr-2 ml-0' : 'ml-2'}`}
                 type="button"
               >
-                {isLogin ? 'Workspace' : 'Sign In'}
+                {isLogin ? 'Signup' : 'Sign In'}
               </button>
             </p>
           </div>

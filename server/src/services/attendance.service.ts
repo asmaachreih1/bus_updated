@@ -1,20 +1,30 @@
-import { Attendance } from '../models/Attendance';
+import { supabase } from '../config/supabase';
 
 export const AttendanceService = {
-    mark: async (userId: string, clusterId: string, status: string) => {
-        const date = new Date().toISOString().split('T')[0];
+    mark: async (payload: { clusterId: string; userId: string; status: string; date: string }) => {
+        const { data, error } = await supabase
+            .from('attendance')
+            .upsert({
+                cluster_id: payload.clusterId,
+                user_id: payload.userId,
+                status: payload.status,
+                date: payload.date
+            }, { onConflict: 'cluster_id,user_id,date' })
+            .select()
+            .single();
 
-        await Attendance.findOneAndUpdate(
-            { userId, clusterId, date },
-            { status, timestamp: new Date() },
-            { upsert: true }
-        );
-
-        return { success: true };
+        if (error) throw error;
+        return data;
     },
 
-    getForCluster: async (clusterId: string) => {
-        const date = new Date().toISOString().split('T')[0];
-        return await Attendance.find({ clusterId, date });
+    getForCluster: async (clusterId: string, date: string) => {
+        const { data, error } = await supabase
+            .from('attendance')
+            .select('*, users(name)')
+            .eq('cluster_id', clusterId)
+            .eq('date', date);
+
+        if (error) throw error;
+        return data || [];
     }
 };

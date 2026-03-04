@@ -1,15 +1,29 @@
-import { Location } from '../models/Location';
+import { supabase } from '../config/supabase';
 
 export const LocationService = {
-    update: async (driverId: string, lat: number, lng: number, isDriving: boolean) => {
-        return await Location.findOneAndUpdate(
-            { driverId },
-            { lat, lng, isDriving, lastUpdate: new Date() },
-            { upsert: true, new: true }
-        );
+    update: async (userId: string, latitude: number, longitude: number) => {
+        const { data, error } = await supabase
+            .from('locations')
+            .upsert({
+                user_id: userId,
+                latitude,
+                longitude,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     },
 
     getAll: async () => {
-        return await Location.find({});
+        const { data, error } = await supabase
+            .from('locations')
+            .select('*, users(name, role)')
+            .order('updated_at', { ascending: false });
+
+        if (error) throw error;
+        return data || [];
     }
 };

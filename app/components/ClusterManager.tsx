@@ -183,19 +183,19 @@ export default function ClusterManager({ user, isOpen, onClose, etaSeconds, memb
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-100/40 backdrop-blur-xl">
-            <div className={`w-full max-w-lg bg-white/95 rounded-[2.5rem] sm:rounded-[3rem] p-6 sm:p-10 border border-slate-200/50 relative overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.1)] ${isRTL ? 'text-right' : 'text-left'}`}>
+        <div className={`fixed inset-0 z-[100] flex flex-col bg-slate-50/95 backdrop-blur-2xl transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`flex-1 flex flex-col w-full max-w-none h-full bg-white relative overflow-hidden ${isRTL ? 'text-right' : 'text-left'}`}>
                 <div className={`absolute top-0 ${isRTL ? 'left-0' : 'right-0'} w-40 h-40 bg-[#f5b829]/5 blur-3xl`} />
 
-                <div className="flex justify-between items-center mb-10">
+                <div className="flex justify-between items-center p-8 sm:p-12 pb-2">
                     <div>
-                        <h3 className="text-2xl font-black text-[#274162] tracking-tighter uppercase">{user.role === 'driver' ? t('cluster.ops') : t('cluster.boarding_status')}</h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{user.role === 'driver' ? 'Fleet Management' : 'Mark your arrival'}</p>
+                        <h3 className="text-3xl font-black text-[#274162] tracking-tighter uppercase">{user.role === 'driver' ? t('cluster.ops') : t('cluster.boarding_status')}</h3>
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{user.role === 'driver' ? 'Fleet Management' : 'Mark your arrival'}</p>
                     </div>
-                    <button type="button" onClick={onClose} className="p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-400 hover:text-[#274162] transition-all cursor-pointer relative z-50">✕</button>
+                    <button type="button" onClick={onClose} className="p-5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-[2rem] text-slate-400 hover:text-[#274162] transition-all cursor-pointer relative z-50 shadow-sm active:scale-90 font-bold">Close</button>
                 </div>
 
-                <div className="space-y-6 relative z-10">
+                <div className="flex-1 overflow-y-auto px-8 sm:px-12 py-6 space-y-10 relative z-10 custom-scrollbar">
                     {user.role === 'driver' ? (
                         <div className="space-y-6">
                             {!myCluster ? (
@@ -266,23 +266,34 @@ export default function ClusterManager({ user, isOpen, onClose, etaSeconds, memb
                         </div>
                     ) : (<div className="space-y-6">
                         {!myCluster ? (
-                            <div className="space-y-4">
-                                <p className="text-sm font-bold text-slate-400 text-center px-4 italic">Join your driver's cluster using their shared code to mark your attendance.</p>
-                                <input
-                                    type="text"
-                                    placeholder="ENTER CODE"
-                                    maxLength={6}
-                                    className={`w-full px-6 py-5 bg-slate-50 border border-slate-200 rounded-2xl text-xl font-black text-center text-[#274162] focus:ring-2 focus:ring-[#f5b829]/30 outline-none transition-all placeholder:text-slate-300 tracking-[0.5em]`}
-                                    value={clusterCode}
-                                    onChange={(e) => setClusterCode(e.target.value.toUpperCase())}
-                                />
-                                <button
-                                    onClick={joinCluster}
-                                    disabled={loading || clusterCode.length < 6}
-                                    className="w-full py-5 bg-[#f5b829] hover:bg-[#f5b829]/90 text-slate-800 text-[10px] font-black rounded-2xl uppercase tracking-[0.2em] shadow-xl shadow-[#f5b829]/20 active:scale-95 transition-all disabled:opacity-50"
-                                >
-                                    {loading ? t('cluster.processing') : 'JOIN CLUSTER'}
-                                </button>
+                            <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto py-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                                <div className="w-24 h-24 bg-[#f5b829]/10 rounded-[2.5rem] flex items-center justify-center text-5xl mb-10 shadow-inner">
+                                    🎫
+                                </div>
+                                <h4 className="text-3xl font-black text-[#274162] mb-4 text-center tracking-tight">Access Your Fleet</h4>
+                                <p className="text-sm font-bold text-slate-400 text-center px-8 mb-12 leading-relaxed italic">Join your driver's cluster using their shared code to unlock live tracking and mark your attendance.</p>
+
+                                <div className="w-full space-y-8">
+                                    <div className="relative group">
+                                        <input
+                                            type="text"
+                                            placeholder="CODE"
+                                            maxLength={6}
+                                            className={`w-full px-8 py-7 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] text-3xl font-black text-center text-[#274162] focus:ring-4 focus:ring-[#f5b829]/20 focus:border-[#f5b829] outline-none transition-all placeholder:text-slate-200 tracking-[0.5em] shadow-inner ${isRTL ? 'text-right' : 'text-center'}`}
+                                            value={clusterCode}
+                                            onChange={(e) => setClusterCode(e.target.value.toUpperCase())}
+                                        />
+                                        <div className="absolute inset-0 rounded-[2.5rem] pointer-events-none border border-slate-200 group-hover:border-[#f5b829]/30 transition-colors" />
+                                    </div>
+
+                                    <button
+                                        onClick={joinCluster}
+                                        disabled={loading || clusterCode.length < 6}
+                                        className="w-full py-6 bg-[#f5b829] hover:bg-[#f5b829]/90 text-slate-800 text-sm font-black rounded-[2.5rem] uppercase tracking-[0.3em] shadow-[0_20px_40px_rgba(245,184,41,0.25)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:shadow-none"
+                                    >
+                                        {loading ? t('cluster.processing') : 'Verify & Join'}
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <>
@@ -397,9 +408,10 @@ export default function ClusterManager({ user, isOpen, onClose, etaSeconds, memb
                     </div>
                     )}
                 </div>
-            </div >
+            </div>
 
-            <style jsx>{`
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .scrollbar-style::-webkit-scrollbar { width: 4px; }
                 .scrollbar-style::-webkit-scrollbar-track { background: transparent; }
                 .scrollbar-style::-webkit-scrollbar-thumb { 
@@ -407,7 +419,7 @@ export default function ClusterManager({ user, isOpen, onClose, etaSeconds, memb
                     border-radius: 10px;
                 }
                 .scrollbar-style::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.1); }
-            `}</style>
+            ` }} />
         </div>
     );
 }
