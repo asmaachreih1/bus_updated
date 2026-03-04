@@ -14,7 +14,7 @@ export const styles = `
     min-height: 100vh;
     padding: 1.25rem;
     color: var(--ink);
-    overflow: hidden;
+    overflow-y: auto;
     font-family: "Rajdhani", "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
     background:
       radial-gradient(circle at 15% -8%, rgba(57, 196, 191, 0.24), transparent 42%),

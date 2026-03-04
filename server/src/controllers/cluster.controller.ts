@@ -39,10 +39,10 @@ export const ClusterController = {
     getMemberCluster: async (req: Request, res: Response) => {
         try {
             const { userId } = req.params;
-            // In a real app we'd fetch the user from Supabase here
-            // For now, let's assume the frontend might provide the clusterId or we fetch from service
-            const members = await ClusterService.getMembers(String(userId)); // This is just a placeholder, logic depends on schema
-            res.json({ members });
+            const cluster = await ClusterService.getByUserId(String(userId));
+            if (!cluster) return res.json({ cluster: null, members: [] });
+            const members = await ClusterService.getMembers(cluster.code);
+            res.json({ cluster, members });
         } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
         }
@@ -56,9 +56,7 @@ export const ClusterController = {
             if (role === 'driver') {
                 cluster = await ClusterService.getDriverCluster(String(driverId));
             } else {
-                // Simplified: assuming userId is used to find cluster
-                const clusters = await ClusterService.listAll();
-                cluster = clusters.find((c: any) => c.members?.includes(String(userId)));
+                cluster = await ClusterService.getByUserId(String(userId));
             }
 
             if (!cluster) return res.json({ success: false });
@@ -71,6 +69,7 @@ export const ClusterController = {
                 success: true,
                 cluster,
                 members,
+                today: date,
                 attendance: attendance.reduce((acc: any, curr: any) => {
                     acc[curr.user_id] = curr.status;
                     return acc;

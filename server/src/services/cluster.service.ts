@@ -48,6 +48,27 @@ export const ClusterService = {
         return data;
     },
 
+    getByUserId: async (userId: string) => {
+        // First get the user's cluster_id (which is the code)
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('cluster_id')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !user?.cluster_id) return null;
+
+        // Then get the cluster
+        const { data: cluster, error: clusterError } = await supabase
+            .from('clusters')
+            .select('*')
+            .eq('code', user.cluster_id)
+            .single();
+
+        if (clusterError) return null;
+        return cluster;
+    },
+
     getMembers: async (code: string) => {
         const { data, error } = await supabase
             .from('users')

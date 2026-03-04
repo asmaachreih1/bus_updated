@@ -20,6 +20,7 @@ export default function Profile() {
     const [user, setUser] = useState<ProfileUser | null>(null);
     const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [fetchingCluster, setFetchingCluster] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const copyToClipboard = (text: string) => {
@@ -58,6 +59,37 @@ export default function Profile() {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [router]);
 
+    useEffect(() => {
+        if (user && !user.clusterCode && !user.clusterId) {
+            fetchUserCluster();
+        }
+    }, [user?.role, user?.id]);
+
+    const fetchUserCluster = async () => {
+        if (!user) return;
+        setFetchingCluster(true);
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const endpoint = user.role === 'driver'
+                ? `${apiUrl}/api/clusters/driver/${user.id}`
+                : `${apiUrl}/api/clusters/member/${user.id}`;
+
+            const res = await fetch(endpoint);
+            const data = await res.json();
+
+            if (data.cluster && data.cluster.code) {
+                const updatedUser = { ...user, clusterCode: data.cluster.code };
+                setUser(updatedUser);
+                localStorage.setItem('tracker_user', JSON.stringify(updatedUser));
+                window.dispatchEvent(new Event('storage'));
+            }
+        } catch (e) {
+            console.error("Failed to fetch cluster:", e);
+        } finally {
+            setFetchingCluster(false);
+        }
+    };
+
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file && user) {
@@ -78,20 +110,20 @@ export default function Profile() {
             <div className="fixed top-0 right-0 w-full md:w-1/2 h-full bg-gradient-to-bl from-indigo-50/50 via-transparent to-transparent pointer-events-none" />
             <div className="fixed bottom-0 left-0 w-full md:w-1/2 h-full bg-gradient-to-tr from-rose-50/50 via-transparent to-transparent pointer-events-none" />
 
-            <div className="w-full max-w-md bg-white rounded-[2.5rem] sm:rounded-[2rem] p-6 sm:p-8 border border-slate-100 relative z-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-4">
+            <div className="w-full max-w-sm bg-white rounded-[2rem] sm:rounded-[1.5rem] p-5 sm:p-6 border border-slate-100 relative z-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-4">
                 <button
                     onClick={() => router.push('/')}
-                    className={`flex items-center gap-1.5 text-slate-400 hover:text-slate-900 transition-colors font-semibold text-xs mb-8 group ${isRTL ? 'flex-row-reverse' : ''}`}
+                    className={`flex items-center gap-1.5 text-slate-400 hover:text-slate-900 transition-colors font-semibold text-xs mb-6 group ${isRTL ? 'flex-row-reverse' : ''}`}
                 >
                     <span className={`transition-transform group-hover:-translate-x-1 ${isRTL ? 'rotate-180 group-hover:translate-x-1' : ''}`}>←</span>
                     {t('profile.back_to_dashboard') || 'Back'}
                 </button>
 
-                <div className="flex flex-col items-center mb-8">
-                    <div className="relative group mb-4">
+                <div className="flex flex-col items-center mb-6">
+                    <div className="relative group mb-3">
                         <div
                             onClick={() => fileInputRef.current?.click()}
-                            className={`w-28 h-28 rounded-full flex items-center justify-center text-3xl font-bold shadow-sm relative overflow-hidden cursor-pointer ring-4 ring-white border border-slate-100 bg-[#274162] text-white`}
+                            className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold shadow-sm relative overflow-hidden cursor-pointer ring-4 ring-white border border-slate-100 bg-[#274162] text-white`}
                             style={photoDataUrl ? { backgroundImage: `url(${photoDataUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' } : undefined}
                         >
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white backdrop-blur-sm">
@@ -106,14 +138,14 @@ export default function Profile() {
                         </div>
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoChange} />
 
-                        <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 pointer-events-none">
-                            <span className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+                        <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 pointer-events-none">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
                         </div>
                     </div>
 
-                    <h1 className="text-2xl font-bold text-slate-900 mb-1.5">{user.name}</h1>
+                    <h1 className="text-xl font-bold text-slate-900 mb-1">{user.name}</h1>
                     <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-[11px] font-medium ${user.role === 'driver' ? 'bg-[#274162]/10 text-[#274162] border border-[#274162]/20' : 'bg-[#274162]/10 text-[#274162] border border-[#274162]/20'}`}>
+                        <span className="px-3 py-1 rounded-full text-[10px] font-medium bg-[#274162]/10 text-[#274162] border border-[#274162]/20">
                             {user.role === 'driver' ? t('auth.role_driver') || 'Driver' : (user.clusterCode || user.clusterId ? `Cluster ${user.clusterCode || user.clusterId}` : 'Member')}
                         </span>
                     </div>
@@ -141,7 +173,15 @@ export default function Profile() {
                                     <p className="text-sm font-medium text-slate-700">{user.capacity} <span className="text-slate-400 font-normal">{t('profile.authorized_seats') || 'Seats'}</span></p>
                                 </div>
                             </div>
-                            {user.clusterCode && (
+                            {fetchingCluster ? (
+                                <div className="p-3 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center gap-3 animate-pulse">
+                                    <div className="w-9 h-9 rounded-xl bg-slate-100 flex-shrink-0" />
+                                    <div className="space-y-1">
+                                        <div className="h-2 w-20 bg-slate-100 rounded" />
+                                        <div className="h-4 w-12 bg-slate-100 rounded" />
+                                    </div>
+                                </div>
+                            ) : user.clusterCode && (
                                 <div className="p-3 bg-[#274162]/5 rounded-2xl border border-[#274162]/10 flex items-center gap-3">
                                     <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#274162] shadow-sm border border-[#274162]/10 flex-shrink-0">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><polyline points="16 11 18 13 22 9" /></svg>
@@ -171,16 +211,6 @@ export default function Profile() {
                 <div className="space-y-2">
                     <button
                         onClick={() => {
-                            sessionStorage.setItem('open_support_modal', '1');
-                            router.push('/');
-                        }}
-                        className="w-full py-2.5 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-xl transition-colors border border-slate-200 flex items-center justify-center gap-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
-                        {t('common.support') || 'Help & Support'}
-                    </button>
-                    <button
-                        onClick={() => {
                             localStorage.removeItem('tracker_user');
                             localStorage.removeItem('token');
                             router.push('/login');
@@ -193,12 +223,9 @@ export default function Profile() {
                 </div>
             </div>
 
-            {/* Extra spacer to ensure content clears the fixed bottom navbar */}
             <div className="h-20 w-full flex-shrink-0" />
 
-            {/* Bottom Navigation Bar */}
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 px-4 sm:px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.05)] md:px-12 md:pb-6 md:rounded-t-[2.5rem] md:border-none md:shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
-                {/* Member Info (Current Stats) */}
                 <button onClick={() => {
                     sessionStorage.setItem('open_sidebar', '1');
                     router.push('/');
@@ -211,13 +238,11 @@ export default function Profile() {
                     <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate">{user?.role === 'user' ? 'Status' : 'Home'}</span>
                 </button>
 
-                {/* Profile */}
                 <button className="p-2 text-[#f5b829] transition-colors flex flex-col items-center gap-1 group flex-shrink-0 w-16">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user scale-110"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                     <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate">Profile</span>
                 </button>
 
-                {/* Center Map Button */}
                 <div className="relative -top-6 flex-shrink-0 px-2">
                     <button
                         onClick={() => router.push('/?view=app')}
@@ -228,7 +253,6 @@ export default function Profile() {
                     </button>
                 </div>
 
-                {/* Cluster Joined / Management */}
                 <div className="flex flex-col items-center flex-shrink-0 w-16">
                     <button
                         onClick={() => {
@@ -241,21 +265,6 @@ export default function Profile() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                     </button>
                     <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">{user?.role === 'user' ? 'Cluster' : 'Manage'}</span>
-                </div>
-
-                {/* Support - Hide for Driver */}
-                <div className="flex flex-col items-center flex-shrink-0 w-16">
-                    <button
-                        onClick={() => {
-                            sessionStorage.setItem('open_support_modal', '1');
-                            router.push('/');
-                        }}
-                        className="p-2 text-slate-400 hover:text-rose-500 transition-colors flex flex-col items-center gap-1 group"
-                        title="Support & Reports"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
-                    </button>
-                    <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">Support</span>
                 </div>
             </div>
         </div>
