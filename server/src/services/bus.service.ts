@@ -14,6 +14,9 @@ type UpdateLocationPayload = {
   lat?: number | string;
   lng?: number | string;
   isDriving?: boolean;
+  destination?: string;
+  destLat?: number | string;
+  destLng?: number | string;
 };
 
 type UpdateMemberPayload = {
@@ -60,7 +63,7 @@ export function getVansState() {
 }
 
 export function updateLocation(payload: UpdateLocationPayload) {
-  const { van_id, lat, lng, isDriving } = payload || {};
+  const { van_id, lat, lng, isDriving, destination, destLat, destLng } = payload || {};
   const db = readDB();
 
   db.vanLocations[String(van_id)] = {
@@ -68,6 +71,9 @@ export function updateLocation(payload: UpdateLocationPayload) {
     lat: parseFloat(String(lat)),
     lng: parseFloat(String(lng)),
     isDriving: !!isDriving,
+    destination: destination || undefined,
+    destLat: destLat ? parseFloat(String(destLat)) : undefined,
+    destLng: destLng ? parseFloat(String(destLng)) : undefined,
     lastUpdated: new Date(),
   };
 

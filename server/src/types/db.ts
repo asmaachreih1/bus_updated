@@ -16,6 +16,9 @@ export interface VanLocation {
   lat: number;
   lng: number;
   isDriving: boolean;
+  destination?: string;
+  destLat?: number;
+  destLng?: number;
   lastUpdated: Date | string;
 }
 

@@ -14,7 +14,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): Re
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET as string);
     req.user = decoded;
     return next();
   } catch {

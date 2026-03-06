@@ -15,7 +15,7 @@ export default function Login() {
     name: '',
     email: '',
     password: '',
-    capacity: '14'
+    capacity: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,6 +40,7 @@ export default function Login() {
       ? {
         email: formData.email.trim(),
         password: formData.password,
+        role,
       }
       : {
         id: Math.random().toString(36).substring(2, 10),
@@ -75,7 +76,7 @@ export default function Login() {
             ...prev,
             name: '',
             password: '',
-            capacity: '14',
+            capacity: '',
           }));
           setError('Account created! Please login.');
         }

@@ -26,7 +26,9 @@ export default function Home() {
   const openMapFromQuery = searchParams.get('view') === 'app';
   const { t, language, setLanguage, isRTL } = useLanguage();
   const mapRef = useRef<any>(null);
-  const vanMarkerRef = useRef<any>(null);
+  const vanMarkersRef = useRef<{ [key: string]: any }>({});
+  const destinationMarkersRef = useRef<{ [key: string]: any }>({});
+  const destinationLinesRef = useRef<{ [key: string]: any }>({});
   const studentMarkerRef = useRef<any>(null);
   const directionsRendererRef = useRef<any>(null);
   const intervalRef = useRef<any>(null);
@@ -52,13 +54,32 @@ export default function Home() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isClusterManagerOpen, setIsClusterManagerOpen] = useState(false);
   const [hasNotifiedArrival, setHasNotifiedArrival] = useState(false);
+  const hasNotifiedArrivalRef = useRef(false);
   const [selectedVanId, setSelectedVanId] = useState<string | null>(null);
   const selectedVanIdRef = useRef<string | null>(null);
   const [discoveryEtas, setDiscoveryEtas] = useState<{ [key: string]: string }>({});
+  const [destination, setDestination] = useState('');
+  const destinationRef = useRef('');
+  const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [geocodingCache, setGeocodingCache] = useState<{ [key: string]: { lat: number; lng: number } | null }>({});
+  const geocodingCacheRef = useRef<{ [key: string]: { lat: number; lng: number } | null }>({});
+
+  useEffect(() => {
+    destinationRef.current = destination;
+  }, [destination]);
+
+  useEffect(() => {
+    geocodingCacheRef.current = geocodingCache;
+  }, [geocodingCache]);
 
   useEffect(() => {
     selectedVanIdRef.current = selectedVanId;
   }, [selectedVanId]);
+
+  useEffect(() => {
+    hasNotifiedArrivalRef.current = hasNotifiedArrival;
+  }, [hasNotifiedArrival]);
 
   const handleSelectVan = async (vanId: string | null) => {
     setSelectedVanId(vanId);
@@ -191,7 +212,14 @@ export default function Home() {
           await fetch(`${apiUrl}/api/update-location`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ van_id: myIdRef.current, ...pos, isDriving: isBroadcastingRef.current })
+            body: JSON.stringify({
+              van_id: myIdRef.current,
+              ...pos,
+              isDriving: isBroadcastingRef.current,
+              destination: destinationRef.current,
+              destLat: destCoordsRef.current?.lat,
+              destLng: destCoordsRef.current?.lng
+            })
           });
         } else if (userRef.current?.role === 'user') {
           await fetch(`${apiUrl}/api/update-member`, {
@@ -267,25 +295,157 @@ export default function Home() {
     }, 4000);
   };
 
-  const updateMapMarkers = (vansData: any[], membersData: any[]) => {
+  const geocodeDestination = async (address: string): Promise<{ lat: number; lng: number } | null> => {
+    if (!address) return null;
+    const searchAddress = address.length < 10 ? `${address}, Beirut, Lebanon` : address;
+
+    if (searchAddress in geocodingCacheRef.current) return geocodingCacheRef.current[searchAddress];
+
+    if (!window.google?.maps?.Geocoder) return null;
+    const geocoder = new window.google.maps.Geocoder();
+    return new Promise((resolve) => {
+      geocoder.geocode({ address: searchAddress }, (results: any, status: string) => {
+        if (status === 'OK' && results[0]) {
+          const loc = results[0].geometry.location;
+          const coords = { lat: loc.lat(), lng: loc.lng() };
+          setGeocodingCache(prev => ({ ...prev, [searchAddress]: coords }));
+          resolve(coords);
+        } else {
+          setGeocodingCache(prev => ({ ...prev, [searchAddress]: null as any }));
+          resolve(null);
+        }
+      });
+    });
+  };
+
+  const updateMapMarkers = async (vansData: any[], membersData: any[]) => {
     if (!mapRef.current) return;
-    // Van Marker
-    if (vansData.length > 0) {
-      const van = vansData[0];
-      if (!vanMarkerRef.current) {
-        vanMarkerRef.current = new window.google.maps.Marker({
+
+    // 1. Van Markers & Destinations
+    const currentVanIds = new Set(vansData.map(v => v.id));
+
+    // Cleanup old markers
+    Object.keys(vanMarkersRef.current).forEach(id => {
+      if (!currentVanIds.has(id)) {
+        vanMarkersRef.current[id].setMap(null);
+        delete vanMarkersRef.current[id];
+        if (destinationMarkersRef.current[id]) {
+          destinationMarkersRef.current[id].setMap(null);
+          delete destinationMarkersRef.current[id];
+        }
+        if (destinationLinesRef.current[id]) {
+          destinationLinesRef.current[id].setMap(null);
+          delete destinationLinesRef.current[id];
+        }
+      }
+    });
+
+    for (const van of vansData) {
+      // Van Marker
+      if (!vanMarkersRef.current[van.id]) {
+        vanMarkersRef.current[van.id] = new window.google.maps.Marker({
           map: mapRef.current,
           icon: {
-            path: 'M20,12H4V4H20V12M22,2H2V16H4V22H6V16H18V22H20V16H22V2M18,11H16V6H18V11M14,11H6V6H14V11Z',
+            path: window.google.maps.SymbolPath.CIRCLE,
             fillColor: van.isDriving ? '#10B981' : '#F59E0B',
             fillOpacity: 1,
-            strokeWeight: 0,
-            scale: 1.8,
-            anchor: new window.google.maps.Point(12, 12)
+            strokeWeight: 2,
+            strokeColor: '#FFFFFF',
+            scale: 8
           }
         });
       }
-      vanMarkerRef.current.setPosition({ lat: van.lat, lng: van.lng });
+      vanMarkersRef.current[van.id].setPosition({ lat: van.lat, lng: van.lng });
+
+      // Destination and Routes
+      const isMeDriver = van.id === myIdRef.current && userRef.current?.role === 'driver';
+      const isMySelectedVan = van.id === selectedVanIdRef.current && userRef.current?.role === 'user';
+      let coords = (van.destLat && van.destLng) ? { lat: van.destLat, lng: van.destLng } : null;
+
+      if (!coords && van.destination) {
+        coords = await geocodeDestination(van.destination);
+      }
+
+      // Handle Route (Professional Blue Path)
+      if ((isMeDriver || isMySelectedVan) && directionsRendererRef.current) {
+        const ds = new window.google.maps.DirectionsService();
+        let origin, destination;
+
+        if (isMeDriver && coords) {
+          origin = studentPosRef.current || { lat: van.lat, lng: van.lng };
+          destination = coords;
+        } else if (isMySelectedVan) {
+          if (!hasNotifiedArrivalRef.current) {
+            // User -> Van
+            origin = studentPosRef.current || { lat: 0, lng: 0 };
+            destination = { lat: van.lat, lng: van.lng };
+          } else if (coords) {
+            // Van -> Destination (after pickup)
+            origin = { lat: van.lat, lng: van.lng };
+            destination = coords;
+          }
+        }
+
+        if (origin && destination && (origin.lat !== 0 || origin.lng !== 0)) {
+          // Remove straight polyline if it exists
+          if (destinationLinesRef.current[van.id]) {
+            destinationLinesRef.current[van.id].setMap(null);
+            delete destinationLinesRef.current[van.id];
+          }
+
+          ds.route({
+            origin,
+            destination,
+            travelMode: window.google.maps.TravelMode.DRIVING,
+          }, (result: any, status: string) => {
+            if (status === 'OK' && directionsRendererRef.current) {
+              directionsRendererRef.current.setDirections(result);
+            } else {
+              console.error('Route failed:', status, { origin, destination });
+            }
+          });
+        } else {
+          // Clear directions if we can't show a route
+          if (isMeDriver || isMySelectedVan) {
+            directionsRendererRef.current.setDirections({ routes: [] });
+          }
+        }
+      }
+
+      // Handle Pins and Straight Fallbacks
+      if (coords) {
+        // Pin Marker
+        if (!destinationMarkersRef.current[van.id]) {
+          destinationMarkersRef.current[van.id] = new window.google.maps.Marker({
+            map: mapRef.current,
+            label: { text: "📍", fontSize: "16px" },
+            icon: {
+              path: window.google.maps.SymbolPath.CIRCLE,
+              scale: 0
+            }
+          });
+        }
+        destinationMarkersRef.current[van.id].setPosition(coords);
+
+        // Straight line fallback removed as per user request
+      } else {
+        // Cleanup if no destination
+        const isMyActiveRoute = (van.id === myIdRef.current && userRef.current?.role === 'driver') ||
+          (van.id === selectedVanIdRef.current && userRef.current?.role === 'user');
+
+        if (isMyActiveRoute && directionsRendererRef.current) {
+          directionsRendererRef.current.setDirections({ routes: [] });
+        }
+
+        if (destinationMarkersRef.current[van.id]) {
+          destinationMarkersRef.current[van.id].setMap(null);
+          delete destinationMarkersRef.current[van.id];
+        }
+        if (destinationLinesRef.current[van.id]) {
+          destinationLinesRef.current[van.id].setMap(null);
+          delete destinationLinesRef.current[van.id];
+        }
+      }
     }
 
     // "You" Marker (if logged in)
@@ -361,9 +521,9 @@ export default function Home() {
       {user?.role === 'user' && etaSeconds !== null && etaSeconds < 120 && etaSeconds >= 60 && (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md animate-in fade-in slide-in-from-top-4 duration-500">
           <div className={`glass p-6 rounded-[2rem] border-emerald-500/30 bg-emerald-500/10 backdrop-blur-xl shadow-[0_0_50px_rgba(16,185,129,0.2)] flex items-center gap-6 ${isRTL ? 'flex-row-reverse text-right' : 'text-left'}`}>
-            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center text-3xl animate-pulse shadow-lg shadow-emerald-500/40">🚐</div>
-            <div className="flex-1">
-              <p className="text-[10px] font-black uppercase text-emerald-500 tracking-[0.2em] mb-1">{t('reports.get_ready')}</p>
+            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-xl">📍</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">{t('main.broadcast_active')}</p>
               <p className="text-lg font-black text-slate-800 leading-tight">{t('reports.nearly_here')}</p>
             </div>
             <button onClick={() => setEtaSeconds(null)} className="text-slate-500 hover:text-slate-800 transition-all">✕</button>
@@ -415,17 +575,18 @@ export default function Home() {
                     <div key={v.id} className="glass p-5 rounded-2xl flex items-center justify-between group border-slate-200 hover:border-[#f5b829]/30 transition-all">
                       <div className="flex items-center gap-4">
                         <span className="text-2xl bg-[#f5b829]/10 p-3 rounded-xl">
-                          {(v.capacity || 0) >= 5 ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bus-icon lucide-bus"><path d="M8 6v6" /><path d="M15 6v6" /><path d="M2 12h19.6" /><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" /><circle cx="7" cy="18" r="2" /><path d="M9 18h5" /><circle cx="16" cy="18" r="2" /></svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-car-icon lucide-car"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" /><circle cx="7" cy="17" r="2" /><path d="M9 17h6" /><circle cx="17" cy="17" r="2" /></svg>
-                          )}
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
                         </span>
                         <div>
                           <p className="text-sm font-black text-slate-800">Fleet {v.id.slice(0, 3)}</p>
                           <p className="text-[10px] font-bold text-[#f5b829] uppercase tracking-widest">
                             • {v.isDriving ? t('main.operational') : t('main.resting')}
                           </p>
+                          {v.destination && (
+                            <p className="text-[9px] font-bold text-slate-400 mt-0.5 truncate max-w-[120px]">
+                              📍 {v.destination}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <span className={`text-slate-600 group-hover:text-[#f5b829] transition-colors ${isRTL ? 'rotate-180' : ''}`}>➔</span>
@@ -451,20 +612,21 @@ export default function Home() {
                     <div key={v.id} className="glass p-5 rounded-2xl flex items-center justify-between border-slate-200 hover:border-[#f5b829]/50 hover:shadow-lg transition-all">
                       <div className="flex items-center gap-4">
                         <span className="text-2xl bg-yellow-400/10 p-3 rounded-xl">
-                          {(v.capacity || 0) >= 5 ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bus-icon lucide-bus"><path d="M8 6v6" /><path d="M15 6v6" /><path d="M2 12h19.6" /><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" /><circle cx="7" cy="18" r="2" /><path d="M9 18h5" /><circle cx="16" cy="18" r="2" /></svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-car-icon lucide-car"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" /><circle cx="7" cy="17" r="2" /><path d="M9 17h6" /><circle cx="17" cy="17" r="2" /></svg>
-                          )}
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
                         </span>
                         <div>
                           <p className="text-sm font-black text-slate-800">Fleet {v.id.slice(0, 3)}</p>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                             ETA: <span className="text-[#f5b829] font-black">{discoveryEtas[v.id] || '---'}</span>
                           </p>
+                          {v.destination && (
+                            <p className="text-[9px] font-bold text-slate-400 mt-0.5 truncate max-w-[120px]">
+                              📍 {v.destination}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <button onClick={() => handleSelectVan(v.id)} className="px-5 py-2.5 bg-[#f5b829] text-slate-800 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#f5b829]/80 transition-all shadow-md active:scale-95">Select</button>
+                      <button onClick={() => handleSelectVan(v.id)} className="px-3 py-1.5 bg-[#f5b829] text-slate-800 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-[#f5b829]/80 transition-all shadow-md active:scale-95">Select</button>
                     </div>
                   ))}
                   {vans.length === 0 && <p className="text-[10px] font-black text-slate-600 text-center uppercase tracking-widest p-10">{t('common.offline')}</p>}
@@ -495,20 +657,68 @@ export default function Home() {
 
               {/* Members/Waiting List */}
               {user?.role === 'driver' && (
-                <div className="space-y-5">
+                <div className="space-y-6">
+                  {/* Destination Input for Driver */}
+                  <div className="glass p-5 rounded-[2rem] border-slate-200">
+                    <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest mb-3">{t('main.destination')}</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={destination}
+                        onChange={(e) => setDestination(e.target.value)}
+                        placeholder="e.g. Beirut Digital District"
+                        className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#f5b829]"
+                      />
+                      <button
+                        onClick={async () => {
+                          const pos = studentPosRef.current;
+                          if (!pos) return;
+                          const coords = await geocodeDestination(destination);
+                          if (!coords) {
+                            alert("City/Location not found. Please try adding more detail (e.g. 'Hamra, Beirut')");
+                            return;
+                          }
+                          setDestCoords(coords);
+                          destCoordsRef.current = coords;
+
+                          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
+                          try {
+                            await fetch(`${apiUrl}/api/update-location`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                van_id: myIdRef.current,
+                                ...pos,
+                                isDriving: isBroadcastingRef.current,
+                                destination,
+                                destLat: coords.lat,
+                                destLng: coords.lng
+                              })
+                            });
+                            alert('Destination Set & Synced!');
+                          } catch (err) { console.error(err); }
+                        }}
+                        className="px-3 py-2 bg-[#f5b829] text-slate-800 text-[10px] font-black rounded-xl uppercase tracking-widest active:scale-90 transition-all"
+                      >
+                        Set
+                      </button>
+                    </div>
+                  </div>
+
                   <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-4">{t('main.waiting_near')}</p>
                   <div className="space-y-3">
                     {members.map(m => (
                       <div key={m.id} className="glass p-5 rounded-[2rem] flex items-center gap-4 border-slate-200 hover:border-[#f5b829]/20 transition-all">
-                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl font-black overflow-hidden relative group">
-                          <div className="absolute inset-0 bg-[#f5b829]/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          👤
+                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-xl">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-black text-slate-900">{m.name}</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ETA: {memberEtas[m.id] || t('common.loading')}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <p className="text-sm font-black text-slate-900">{m.name}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ETA: {memberEtas[m.id] || t('common.loading')}</p>
+                          </div>
+                          <div className={`w-3 h-3 rounded-full ${memberEtas[m.id] ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`} />
                         </div>
-                        <div className={`w-3 h-3 rounded-full ${memberEtas[m.id] ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`} />
                       </div>
                     ))}
                     {members.length === 0 && <p className="text-center py-10 text-slate-600 font-bold text-xs italic glass rounded-3xl border-dashed border-slate-200">Waiting for members to select you...</p>}

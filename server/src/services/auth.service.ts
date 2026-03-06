@@ -42,6 +42,7 @@ function sanitizeUser(user: any): SafeUser {
 function parseCapacity(role: UserRole, capacity: unknown): number {
   if (role !== 'driver') return 0;
   const parsed = parseInt(String(capacity), 10);
+  // Default to 14 ONLY if the input is not a valid number > 0
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 14;
 }
 
@@ -57,6 +58,7 @@ type SignupPayload = {
 type LoginPayload = {
   email?: string;
   password?: string;
+  role?: UserRole;
 };
 
 export async function signup(payload: SignupPayload): Promise<SafeUser> {
@@ -119,7 +121,7 @@ export async function signup(payload: SignupPayload): Promise<SafeUser> {
 }
 
 export async function login(payload: LoginPayload): Promise<{ user: SafeUser; token: string }> {
-  const { email, password } = payload || {};
+  const { email, password, role } = payload || {};
 
   if (!email || !password) {
     throw new ServiceError(400, 'Email and Password are required for login');
@@ -138,6 +140,11 @@ export async function login(payload: LoginPayload): Promise<{ user: SafeUser; to
       throw new ServiceError(401, 'No account found with this email address');
     }
     handleDbError(error);
+  }
+
+  // Role validation
+  if (role && user.role !== role) {
+    throw new ServiceError(403, `This account is registered as a ${user.role}. Please use the correct login portal.`);
   }
 
   const isPasswordValid = await bcrypt.compare(String(password), user.password_hash);

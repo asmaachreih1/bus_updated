@@ -44,6 +44,7 @@ export const translations = {
             scanning: "Scanning for waiting members...",
             start_session: "Start Session",
             stop_session: "Stop Broadcasting",
+            destination: "Destination",
         },
         profile: {
             back_to_dashboard: "Back to Dashboard",
@@ -146,6 +147,7 @@ export const translations = {
             scanning: "جاري البحث عن ركاب بانتظارك...",
             start_session: "بدء الجلسة",
             stop_session: "إيقاف البث",
+            destination: "الوجهة",
         },
         profile: {
             back_to_dashboard: "العودة للوحة التحكم",
