@@ -571,14 +571,17 @@ export default function Home() {
                 <p className="text-xs text-slate-500 font-bold leading-relaxed mb-6">{t('main.discovery_desc')}</p>
 
                 <div className="space-y-3">
-                  {vans.map(v => (
-                    <div key={v.id} className="glass p-5 rounded-2xl flex items-center justify-between group border-slate-200 hover:border-[#f5b829]/30 transition-all">
+                  {vans.map((v, index) => {
+                    const vanId = typeof v?.id === 'string' ? v.id : '';
+                    const key = vanId || `unknown-van-${index}`;
+                    return (
+                    <div key={key} className="glass p-5 rounded-2xl flex items-center justify-between group border-slate-200 hover:border-[#f5b829]/30 transition-all">
                       <div className="flex items-center gap-4">
                         <span className="text-2xl bg-[#f5b829]/10 p-3 rounded-xl">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
                         </span>
                         <div>
-                          <p className="text-sm font-black text-slate-800">Fleet {v.id.slice(0, 3)}</p>
+                          <p className="text-sm font-black text-slate-800">Fleet {(vanId || '---').slice(0, 3)}</p>
                           <p className="text-[10px] font-bold text-[#f5b829] uppercase tracking-widest">
                             • {v.isDriving ? t('main.operational') : t('main.resting')}
                           </p>
@@ -591,7 +594,7 @@ export default function Home() {
                       </div>
                       <span className={`text-slate-600 group-hover:text-[#f5b829] transition-colors ${isRTL ? 'rotate-180' : ''}`}>➔</span>
                     </div>
-                  ))}
+                  )})}
                   {vans.length === 0 && <p className="text-[10px] font-black text-slate-600 text-center uppercase tracking-widest p-10">{t('common.offline')}</p>}
                 </div>
               </div>
@@ -608,16 +611,19 @@ export default function Home() {
                 <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest mb-4">Discovery</p>
                 <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-2">{t('main.available_vehicles')}</h2>
                 <div className="space-y-3 mt-6">
-                  {vans.map(v => (
-                    <div key={v.id} className="glass p-5 rounded-2xl flex items-center justify-between border-slate-200 hover:border-[#f5b829]/50 hover:shadow-lg transition-all">
+                  {vans.map((v, index) => {
+                    const vanId = typeof v?.id === 'string' ? v.id : '';
+                    const key = vanId || `unknown-van-${index}`;
+                    return (
+                    <div key={key} className="glass p-5 rounded-2xl flex items-center justify-between border-slate-200 hover:border-[#f5b829]/50 hover:shadow-lg transition-all">
                       <div className="flex items-center gap-4">
                         <span className="text-2xl bg-yellow-400/10 p-3 rounded-xl">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
                         </span>
                         <div>
-                          <p className="text-sm font-black text-slate-800">Fleet {v.id.slice(0, 3)}</p>
+                          <p className="text-sm font-black text-slate-800">Fleet {(vanId || '---').slice(0, 3)}</p>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            ETA: <span className="text-[#f5b829] font-black">{discoveryEtas[v.id] || '---'}</span>
+                            ETA: <span className="text-[#f5b829] font-black">{(vanId && discoveryEtas[vanId]) || '---'}</span>
                           </p>
                           {v.destination && (
                             <p className="text-[9px] font-bold text-slate-400 mt-0.5 truncate max-w-[120px]">
@@ -626,9 +632,15 @@ export default function Home() {
                           )}
                         </div>
                       </div>
-                      <button onClick={() => handleSelectVan(v.id)} className="px-3 py-1.5 bg-[#f5b829] text-slate-800 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-[#f5b829]/80 transition-all shadow-md active:scale-95">Select</button>
+                      <button
+                        onClick={() => vanId && handleSelectVan(vanId)}
+                        disabled={!vanId}
+                        className="px-3 py-1.5 bg-[#f5b829] text-slate-800 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-[#f5b829]/80 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Select
+                      </button>
                     </div>
-                  ))}
+                  )})}
                   {vans.length === 0 && <p className="text-[10px] font-black text-slate-600 text-center uppercase tracking-widest p-10">{t('common.offline')}</p>}
                 </div>
               </div>
