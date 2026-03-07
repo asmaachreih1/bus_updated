@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '../context/LanguageContext';
+import ReportModal from '../components/ReportModal';
 
 type ProfileUser = {
     id?: string;
@@ -21,6 +22,7 @@ export default function Profile() {
     const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [fetchingCluster, setFetchingCluster] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const copyToClipboard = (text: string) => {
@@ -266,7 +268,24 @@ export default function Profile() {
                     </button>
                     <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">{user?.role === 'user' ? 'Cluster' : 'Manage'}</span>
                 </div>
+
+                <div className="flex flex-col items-center flex-shrink-0 w-16">
+                    <button
+                        onClick={() => setIsReportModalOpen(true)}
+                        className="p-2 text-slate-400 hover:text-rose-500 transition-colors flex flex-col items-center gap-1 group"
+                        title="Support & Reports"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
+                    </button>
+                    <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-center w-full truncate text-slate-400">Support</span>
+                </div>
             </div>
+
+            <ReportModal
+                isOpen={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+                user={user as any}
+            />
         </div>
     );
 }

@@ -1,41 +1,27 @@
-import { supabase } from '../config/supabase';
+import Report from '../models/Report';
 
 export const ReportService = {
     submit: async (payload: { userId: string; type: string; message: string; userName?: string }) => {
-        const { data, error } = await supabase
-            .from('reports')
-            .insert([{
-                user_id: payload.userId,
-                type: payload.type,
-                message: payload.message,
-                user_name: payload.userName
-            }])
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
+        const report = new Report({
+            id: Math.random().toString(36).substring(7),
+            user_id: payload.userId,
+            type: payload.type,
+            message: payload.message,
+            user_name: payload.userName
+        });
+        await report.save();
+        return report;
     },
 
     getAll: async () => {
-        const { data, error } = await supabase
-            .from('reports')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return data || [];
+        return await Report.find().sort({ created_at: -1 });
     },
 
     resolve: async (reportId: string) => {
-        const { data, error } = await supabase
-            .from('reports')
-            .update({ status: 'resolved' })
-            .eq('id', reportId)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
+        return await Report.findOneAndUpdate(
+            { id: reportId },
+            { status: 'resolved' },
+            { new: true }
+        );
     }
 };

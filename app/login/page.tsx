@@ -197,7 +197,7 @@ export default function Login() {
             )}
 
             {error && (
-              <div className="bg-red-50 border border-red-100 py-3 rounded-xl text-red-500 text-[10px] font-black text-center animate-shake uppercase tracking-widest">
+              <div className={`${error.includes('Account created') ? 'bg-yellow-50 border-yellow-200 text-yellow-600' : 'bg-red-50 border-red-100 text-red-500 animate-shake'} py-3 rounded-xl text-[10px] font-black text-center uppercase tracking-widest`}>
                 {error}
               </div>
             )}

@@ -1,90 +1,45 @@
-import { supabase } from '../config/supabase';
+import Cluster from '../models/Cluster';
+import User from '../models/User';
 
 export const ClusterService = {
     create: async (payload: { name: string; driverId: string; code: string }) => {
-        const { data, error } = await supabase
-            .from('clusters')
-            .insert([{
-                name: payload.name,
-                driver_id: payload.driverId,
-                code: payload.code
-            }])
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
+        const cluster = new Cluster({
+            id: Math.random().toString(36).substring(7),
+            name: payload.name,
+            driver_id: payload.driverId,
+            code: payload.code
+        });
+        await cluster.save();
+        return cluster;
     },
 
     join: async (code: string, userId: string) => {
         // Check if cluster exists
-        const { data: cluster, error: clusterError } = await supabase
-            .from('clusters')
-            .select('*')
-            .eq('code', code)
-            .single();
-
-        if (clusterError) throw new Error('Cluster not found');
+        const cluster = await Cluster.findOne({ code });
+        if (!cluster) throw new Error('Cluster not found');
 
         // Update user's clusterId
-        const { error: userError } = await supabase
-            .from('users')
-            .update({ cluster_id: code })
-            .eq('id', userId);
-
-        if (userError) throw userError;
+        await User.findOneAndUpdate({ id: userId }, { cluster_id: code });
 
         return cluster;
     },
 
     getDriverCluster: async (driverId: string) => {
-        const { data, error } = await supabase
-            .from('clusters')
-            .select('*')
-            .eq('driver_id', driverId)
-            .single();
-
-        if (error && error.code !== 'PGRST116') throw error;
-        return data;
+        return await Cluster.findOne({ driver_id: driverId });
     },
 
     getByUserId: async (userId: string) => {
-        // First get the user's cluster_id (which is the code)
-        const { data: user, error: userError } = await supabase
-            .from('users')
-            .select('cluster_id')
-            .eq('id', userId)
-            .single();
+        const user = await User.findOne({ id: userId });
+        if (!user?.cluster_id) return null;
 
-        if (userError || !user?.cluster_id) return null;
-
-        // Then get the cluster
-        const { data: cluster, error: clusterError } = await supabase
-            .from('clusters')
-            .select('*')
-            .eq('code', user.cluster_id)
-            .single();
-
-        if (clusterError) return null;
-        return cluster;
+        return await Cluster.findOne({ code: user.cluster_id });
     },
 
     getMembers: async (code: string) => {
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('cluster_id', code);
-
-        if (error) throw error;
-        return data || [];
+        return await User.find({ cluster_id: code });
     },
 
     listAll: async () => {
-        const { data, error } = await supabase
-            .from('clusters')
-            .select('*');
-
-        if (error) throw error;
-        return data || [];
+        return await Cluster.find();
     }
 };

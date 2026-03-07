@@ -1,99 +1,99 @@
 import { NextFunction, Request, Response } from 'express';
 import * as busService from '../services/bus.service';
 
-export function getVans(req: Request, res: Response, next: NextFunction): void {
+export async function getVans(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.getVansState();
+    const result = await busService.getVansState();
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function updateLocation(req: Request, res: Response, next: NextFunction): void {
+export async function updateLocation(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.updateLocation(req.body);
+    const result = await busService.updateLocation(req.body);
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function updateMember(req: Request, res: Response, next: NextFunction): void {
+export async function updateMember(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.updateMember(req.body);
+    const result = await busService.updateMember(req.body);
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function createCluster(req: Request, res: Response, next: NextFunction): void {
+export async function createCluster(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.createCluster(req.body);
+    const result = await busService.createCluster(req.body);
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function joinCluster(req: Request, res: Response, next: NextFunction): void {
+export async function joinCluster(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.joinCluster(req.body);
+    const result = await busService.joinCluster(req.body);
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function setAttendance(req: Request, res: Response, next: NextFunction): void {
+export async function setAttendance(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.setAttendance(req.body);
+    const result = await busService.setAttendance(req.body);
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function getAttendance(req: Request, res: Response, next: NextFunction): void {
+export async function getAttendance(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.getAttendance();
+    const result = await busService.getAttendance();
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function createReport(req: Request, res: Response, next: NextFunction): void {
+export async function createReport(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.createReport(req.body);
+    const result = await busService.createReport(req.body);
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function getReports(req: Request, res: Response, next: NextFunction): void {
+export async function getReports(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.getReports();
+    const result = await busService.getReports();
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function resolveReport(req: Request, res: Response, next: NextFunction): void {
+export async function resolveReport(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.resolveReport(req.body);
+    const result = await busService.resolveReport(req.body);
     res.json(result);
   } catch (error) {
     next(error);
   }
 }
 
-export function resetSimulation(req: Request, res: Response, next: NextFunction): void {
+export async function resetSimulation(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = busService.resetSimulation();
+    const result = await busService.resetSimulation();
     res.json(result);
   } catch (error) {
     next(error);

@@ -7,9 +7,8 @@ const parsedPort = Number(process.env.PORT);
 
 export const PORT = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 3003;
 export const JWT_SECRET = process.env.JWT_SECRET || 'tracker-default-secret-key-123';
-export const SUPABASE_URL = process.env.SUPABASE_URL;
-export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+export const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.error('CRITICAL: Supabase environment variables are not defined.');
+if (!MONGODB_URI) {
+    console.error('CRITICAL: MONGODB_URI is not defined in environment variables.');
 }

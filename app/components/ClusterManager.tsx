@@ -298,7 +298,7 @@ export default function ClusterManager({ user, isOpen, onClose, etaSeconds, memb
                                     <>
                                         <div className="p-6 sm:p-8 bg-[#f5b829]/5 border border-[#f5b829]/20 rounded-[2.5rem] relative text-center">
                                             <div className="absolute top-4 right-4 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full text-[10px] font-black border border-emerald-100 shadow-sm">
-                                                {Object.values(memberAttendance).filter(v => v === 'coming').length} / {myCluster.capacity || 12}
+                                                {Object.values(memberAttendance).filter(v => v !== 'not_coming').length} / {myCluster.capacity || 14}
                                             </div>
                                             <p className="text-[10px] text-[#274162]/60 font-bold uppercase tracking-widest mb-1 mt-4">CONNECTED TO</p>
                                             <p className="text-xl sm:text-2xl font-black text-[#274162] tracking-tight">{myCluster.name}</p>
@@ -307,7 +307,7 @@ export default function ClusterManager({ user, isOpen, onClose, etaSeconds, memb
                                         <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 onClick={() => markAttendance('coming')}
-                                                disabled={loading || attendance === 'coming'}
+                                                disabled={loading || attendance !== null}
                                                 className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${attendance === 'coming' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-50 text-slate-400 border border-slate-200 hover:border-emerald-500/30 hover:text-emerald-500'}`}
                                             >
                                                 {loading && attendance !== 'coming' ? '...' : (
@@ -319,7 +319,7 @@ export default function ClusterManager({ user, isOpen, onClose, etaSeconds, memb
                                             </button>
                                             <button
                                                 onClick={() => markAttendance('not_coming')}
-                                                disabled={loading || attendance === 'coming'}
+                                                disabled={loading || attendance !== null}
                                                 className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${attendance === 'not_coming' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-slate-50 text-slate-400 border border-slate-200 hover:border-red-500/30 hover:text-red-500'}`}
                                             >
                                                 {loading && attendance !== 'not_coming' ? '...' : (
@@ -330,7 +330,7 @@ export default function ClusterManager({ user, isOpen, onClose, etaSeconds, memb
                                                 )}
                                             </button>
                                         </div>
-                                        {attendance === 'coming' && (
+                                        {attendance !== null && (
                                             <p className="text-[9px] text-center text-emerald-600 font-bold uppercase tracking-widest italic animate-pulse mt-2">Decision locked for today</p>
                                         )}
 

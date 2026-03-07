@@ -1,29 +1,28 @@
-import { supabase } from '../config/supabase';
+import Location from '../models/Location';
+import User from '../models/User';
 
 export const LocationService = {
     update: async (userId: string, latitude: number, longitude: number) => {
-        const { data, error } = await supabase
-            .from('locations')
-            .upsert({
-                user_id: userId,
-                latitude,
-                longitude,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id' })
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
+        return await Location.findOneAndUpdate(
+            { user_id: userId },
+            {
+                lat: latitude,
+                lng: longitude,
+                updated_at: new Date()
+            },
+            { upsert: true, new: true }
+        );
     },
 
     getAll: async () => {
-        const { data, error } = await supabase
-            .from('locations')
-            .select('*, users(name, role)')
-            .order('updated_at', { ascending: false });
+        const locations = await Location.find().sort({ updated_at: -1 }).lean();
 
-        if (error) throw error;
-        return data || [];
+        // Manual join for user details
+        const enrichedLocations = await Promise.all(locations.map(async (loc) => {
+            const user = await User.findOne({ id: loc.user_id }).select('name role').lean();
+            return { ...loc, users: user };
+        }));
+
+        return enrichedLocations;
     }
 };

@@ -1,13 +1,18 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import { User } from '../models/User';
-import { Cluster } from '../models/Cluster';
+import User from '../models/User';
+import Cluster from '../models/Cluster';
 import { ClusterService } from '../services/cluster.service';
 
 dotenv.config();
 
 async function run() {
-    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/van-tracker';
+    const MONGODB_URI = process.env.MONGODB_URI;
+
+    if (!MONGODB_URI) {
+        console.error('❌ MONGODB_URI not found in environment');
+        return;
+    }
 
     try {
         await mongoose.connect(MONGODB_URI);
@@ -20,7 +25,7 @@ async function run() {
                 id: 'driver_stable',
                 name: 'Stable Driver',
                 email: 'driver@example.com',
-                password: 'password123',
+                password_hash: 'hashed_password', // In a real script we'd hash it
                 role: 'driver',
                 capacity: 10
             });
@@ -35,7 +40,7 @@ async function run() {
                 id: 'user_stable',
                 name: 'Stable User',
                 email: 'stable@example.com',
-                password: 'password123',
+                password_hash: 'hashed_password',
                 role: 'user'
             });
             await member.save();
@@ -44,7 +49,11 @@ async function run() {
 
         // 3. Create cluster
         const clusterName = 'Stable Cluster ' + Math.floor(Math.random() * 1000);
-        const cluster = await ClusterService.create(clusterName, driver.id);
+        const cluster = await ClusterService.create({
+            name: clusterName,
+            driverId: driver.id,
+            code: 'CODE' + Math.floor(Math.random() * 1000)
+        });
         console.log(`🚀 Created cluster "${clusterName}" with code: ${cluster.code}`);
 
         // 4. Add stable@example.com to cluster
@@ -53,7 +62,9 @@ async function run() {
 
         console.log('\nFinal State:');
         console.log('Cluster Code:', cluster.code);
-        console.log('Members:', (await Cluster.findOne({ code: cluster.code }))?.members);
+
+        const updatedMember = await User.findOne({ id: member.id });
+        console.log('Member Cluster Code:', updatedMember?.cluster_id);
 
     } catch (error) {
         console.error('❌ Error:', error);

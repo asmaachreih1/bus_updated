@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ClusterService } from '../services/cluster.service';
 import { AttendanceService } from '../services/attendance.service';
+import User from '../models/User';
 
 export const ClusterController = {
     create: async (req: Request, res: Response) => {
@@ -61,13 +62,19 @@ export const ClusterController = {
 
             if (!cluster) return res.json({ success: false });
 
+            const driver = await User.findOne({ id: cluster.driver_id });
+            const clusterWithCapacity = {
+                ...cluster.toObject ? cluster.toObject() : cluster,
+                capacity: driver?.capacity || 14
+            };
+
             const members = await ClusterService.getMembers(cluster.code);
             const date = new Date().toISOString().split('T')[0];
             const attendance = await AttendanceService.getForCluster(cluster.code, date);
 
             res.json({
                 success: true,
-                cluster,
+                cluster: clusterWithCapacity,
                 members,
                 today: date,
                 attendance: attendance.reduce((acc: any, curr: any) => {

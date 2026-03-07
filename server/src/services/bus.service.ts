@@ -1,4 +1,7 @@
-import { createInitialDB, readDB, writeDB } from '../utils/fileDB';
+import Location from '../models/Location';
+import Cluster from '../models/Cluster';
+import Attendance from '../models/Attendance';
+import Report from '../models/Report';
 
 class ServiceError extends Error {
   status: number;
@@ -54,142 +57,147 @@ type ResolveReportPayload = {
   reportId?: string;
 };
 
-export function getVansState() {
-  const db = readDB();
+export async function getVansState() {
+  const locations = await Location.find().lean();
+
   return {
-    vans: Object.values(db.vanLocations),
-    members: Object.values(db.memberLocations),
+    vans: locations.filter(loc => loc.isDriving || (loc.destination)).map(loc => ({ ...loc, id: loc.user_id })),
+    members: locations.filter(loc => !loc.isDriving && !loc.destination).map(loc => ({ ...loc, id: loc.user_id })),
   };
 }
 
-export function updateLocation(payload: UpdateLocationPayload) {
+export async function updateLocation(payload: UpdateLocationPayload) {
   const { van_id, lat, lng, isDriving, destination, destLat, destLng } = payload || {};
-  const db = readDB();
 
-  db.vanLocations[String(van_id)] = {
-    id: String(van_id),
-    lat: parseFloat(String(lat)),
-    lng: parseFloat(String(lng)),
-    isDriving: !!isDriving,
-    destination: destination || undefined,
-    destLat: destLat ? parseFloat(String(destLat)) : undefined,
-    destLng: destLng ? parseFloat(String(destLng)) : undefined,
-    lastUpdated: new Date(),
-  };
+  await Location.findOneAndUpdate(
+    { user_id: String(van_id) },
+    {
+      user_id: String(van_id),
+      lat: parseFloat(String(lat)),
+      lng: parseFloat(String(lng)),
+      isDriving: !!isDriving,
+      destination: destination || undefined,
+      destLat: destLat ? parseFloat(String(destLat)) : undefined,
+      destLng: destLng ? parseFloat(String(destLng)) : undefined,
+      updated_at: new Date(),
+    },
+    { upsert: true }
+  );
 
-  writeDB(db);
   return { success: true };
 }
 
-export function updateMember(payload: UpdateMemberPayload) {
+export async function updateMember(payload: UpdateMemberPayload) {
   const { id, lat, lng, name, arrived } = payload || {};
   const memberId = String(id);
-  const db = readDB();
-  const previouslyArrived = db.memberLocations[memberId]?.arrived || false;
 
-  db.memberLocations[memberId] = {
-    id: memberId,
-    lat: parseFloat(String(lat)),
-    lng: parseFloat(String(lng)),
-    name: name || 'Friend',
-    arrived: arrived !== undefined ? arrived : previouslyArrived,
-    selectedVanId: payload.selectedVanId,
-    lastUpdated: new Date(),
-  };
+  await Location.findOneAndUpdate(
+    { user_id: memberId },
+    {
+      user_id: memberId,
+      lat: parseFloat(String(lat)),
+      lng: parseFloat(String(lng)),
+      name: name || 'Friend',
+      arrived: !!arrived,
+      selectedVanId: payload.selectedVanId,
+      updated_at: new Date(),
+    },
+    { upsert: true }
+  );
 
-  writeDB(db);
   return { success: true };
 }
 
-export function createCluster(payload: CreateClusterPayload) {
+export async function createCluster(payload: CreateClusterPayload) {
   const { name, driverId } = payload || {};
-  const db = readDB();
   const clusterId = Math.random().toString(36).substring(7);
 
-  db.clusters[clusterId] = {
+  const cluster = new Cluster({
     id: clusterId,
     name: String(name || ''),
-    driverId: String(driverId || ''),
-    members: [],
-  };
+    driver_id: String(driverId || ''),
+    code: clusterId // Using ID as code for simplicity if not provided
+  });
 
-  writeDB(db);
-  return { success: true, cluster: db.clusters[clusterId] };
+  await cluster.save();
+  return { success: true, cluster };
 }
 
-export function joinCluster(payload: JoinClusterPayload) {
+export async function joinCluster(payload: JoinClusterPayload) {
   const { clusterId, userId } = payload || {};
-  const db = readDB();
   const targetClusterId = String(clusterId || '');
   const targetUserId = String(userId || '');
 
-  if (!db.clusters[targetClusterId]) {
+  const cluster = await Cluster.findOne({ id: targetClusterId });
+  if (!cluster) {
     throw new ServiceError(404, 'Cluster not found');
   }
 
-  if (!db.clusters[targetClusterId].members.includes(targetUserId)) {
-    db.clusters[targetClusterId].members.push(targetUserId);
-  }
+  // In this model, members are not an array in Cluster, but we can simulate it if needed
+  // or just return success as the frontend might handle the association elsewhere.
+  // Actually, Cluster schema had driver_id. User schema has cluster_id.
 
-  writeDB(db);
+  const User = (await import('../models/User')).default;
+  await User.findOneAndUpdate({ id: targetUserId }, { cluster_id: cluster.code });
+
   return { success: true };
 }
 
-export function setAttendance(payload: AttendancePayload) {
+export async function setAttendance(payload: AttendancePayload) {
   const { userId, status } = payload || {};
-  const db = readDB();
   const today = new Date().toISOString().split('T')[0];
 
-  if (!db.attendance[today]) db.attendance[today] = {};
-  db.attendance[today][String(userId)] = String(status || '');
+  await Attendance.findOneAndUpdate(
+    { user_id: String(userId), date: today },
+    { status: String(status || '') },
+    { upsert: true }
+  );
 
-  writeDB(db);
   return { success: true };
 }
 
-export function getAttendance() {
-  const db = readDB();
+export async function getAttendance() {
   const today = new Date().toISOString().split('T')[0];
-  return db.attendance[today] || {};
+  const records = await Attendance.find({ date: today }).lean();
+
+  const result: Record<string, string> = {};
+  records.forEach(rec => {
+    result[rec.user_id] = rec.status;
+  });
+
+  return result;
 }
 
-export function createReport(payload: ReportPayload) {
+export async function createReport(payload: ReportPayload) {
   const { userId, userName, type, message } = payload || {};
-  const db = readDB();
-  const report = {
+
+  const report = new Report({
     id: Math.random().toString(36).substring(7),
-    userId: String(userId || ''),
-    userName: String(userName || ''),
+    user_id: String(userId || ''),
+    user_name: String(userName || ''),
     type: String(type || ''),
     message: String(message || ''),
-    timestamp: new Date(),
     status: 'pending',
-  };
+  });
 
-  db.reports.push(report);
-  writeDB(db);
+  await report.save();
   return { success: true, report };
 }
 
-export function getReports() {
-  const db = readDB();
-  return db.reports || [];
+export async function getReports() {
+  return await Report.find().lean();
 }
 
-export function resolveReport(payload: ResolveReportPayload) {
+export async function resolveReport(payload: ResolveReportPayload) {
   const { reportId } = payload || {};
-  const db = readDB();
-  const report = db.reports.find((item) => item.id === reportId);
-
-  if (report) {
-    report.status = 'resolved';
-    writeDB(db);
-  }
-
+  await Report.findOneAndUpdate({ id: reportId }, { status: 'resolved' });
   return { success: true };
 }
 
-export function resetSimulation() {
-  writeDB(createInitialDB());
+export async function resetSimulation() {
+  await Location.deleteMany({});
+  await Cluster.deleteMany({});
+  await Attendance.deleteMany({});
+  await Report.deleteMany({});
   return { success: true, message: 'Simulation reset' };
 }

@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { JWT_SECRET } from '../config/env';
-import { supabase } from '../config/supabase';
+import User from '../models/User';
 import { SafeUser, UserRole } from '../types/db';
 
 class ServiceError extends Error {
@@ -82,42 +82,29 @@ export async function signup(payload: SignupPayload): Promise<SafeUser> {
   }
 
   // Check if user exists
-  const { data: existingUser, error: checkError } = await supabase
-    .from('users')
-    .select('id')
-    .eq('email', normalizedEmail)
-    .single();
+  try {
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      throw new ServiceError(409, 'An account with this email already exists');
+    }
 
-  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows found"
-    handleDbError(checkError);
+    const passwordHash = await bcrypt.hash(String(password), 10);
+
+    const newUser = new User({
+      id: String(id || '').trim() || createUserId(),
+      name: String(name).trim(),
+      email: normalizedEmail,
+      password_hash: passwordHash,
+      role,
+      capacity: parseCapacity(role, capacity),
+    });
+
+    await newUser.save();
+    return sanitizeUser(newUser);
+  } catch (err: any) {
+    if (err instanceof ServiceError) throw err;
+    handleDbError(err);
   }
-
-  if (existingUser) {
-    throw new ServiceError(409, 'An account with this email already exists');
-  }
-
-  const passwordHash = await bcrypt.hash(String(password), 10);
-
-  const newUser = {
-    id: String(id || '').trim() || createUserId(),
-    name: String(name).trim(),
-    email: normalizedEmail,
-    password_hash: passwordHash,
-    role,
-    capacity: parseCapacity(role, capacity),
-  };
-
-  const { data, error } = await supabase
-    .from('users')
-    .insert([newUser])
-    .select()
-    .single();
-
-  if (error) {
-    handleDbError(error);
-  }
-
-  return sanitizeUser(data);
 }
 
 export async function login(payload: LoginPayload): Promise<{ user: SafeUser; token: string }> {
@@ -129,49 +116,43 @@ export async function login(payload: LoginPayload): Promise<{ user: SafeUser; to
 
   const normalizedEmail = normalizeEmail(email);
 
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', normalizedEmail)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') {
+  try {
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
       throw new ServiceError(401, 'No account found with this email address');
     }
-    handleDbError(error);
+
+    // Role validation
+    if (role && user.role !== role) {
+      throw new ServiceError(403, `This account is registered as a ${user.role}. Please use the correct login portal.`);
+    }
+
+    const isPasswordValid = await bcrypt.compare(String(password), user.password_hash);
+
+    if (!isPasswordValid) {
+      throw new ServiceError(401, 'Incorrect password. Please try again.');
+    }
+
+    const safeUser = sanitizeUser(user);
+    const token = jwt.sign(
+      { sub: safeUser.id, email: safeUser.email, role: safeUser.role },
+      JWT_SECRET,
+      { expiresIn: '7d' },
+    );
+
+    return { user: safeUser, token };
+  } catch (err: any) {
+    if (err instanceof ServiceError) throw err;
+    handleDbError(err);
   }
-
-  // Role validation
-  if (role && user.role !== role) {
-    throw new ServiceError(403, `This account is registered as a ${user.role}. Please use the correct login portal.`);
-  }
-
-  const isPasswordValid = await bcrypt.compare(String(password), user.password_hash);
-
-  if (!isPasswordValid) {
-    throw new ServiceError(401, 'Incorrect password. Please try again.');
-  }
-
-  const safeUser = sanitizeUser(user);
-  const token = jwt.sign(
-    { sub: safeUser.id, email: safeUser.email, role: safeUser.role },
-    JWT_SECRET,
-    { expiresIn: '7d' },
-  );
-
-  return { user: safeUser, token };
 }
 
 export async function listUsers(): Promise<SafeUser[]> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*');
-
-  if (error) {
-    handleDbError(error);
+  try {
+    const users = await User.find();
+    return (users || []).map(user => sanitizeUser(user));
+  } catch (err: any) {
+    handleDbError(err);
   }
-
-  return (data || []).map(user => sanitizeUser(user));
 }
 

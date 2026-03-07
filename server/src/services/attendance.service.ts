@@ -1,30 +1,34 @@
-import { supabase } from '../config/supabase';
+import Attendance from '../models/Attendance';
+import User from '../models/User';
 
 export const AttendanceService = {
     mark: async (payload: { clusterId: string; userId: string; status: string; date: string }) => {
-        const { data, error } = await supabase
-            .from('attendance')
-            .upsert({
+        return await Attendance.findOneAndUpdate(
+            {
                 cluster_id: payload.clusterId,
                 user_id: payload.userId,
-                status: payload.status,
                 date: payload.date
-            }, { onConflict: 'cluster_id,user_id,date' })
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
+            },
+            { status: payload.status },
+            { upsert: true, new: true }
+        );
     },
 
     getForCluster: async (clusterId: string, date: string) => {
-        const { data, error } = await supabase
-            .from('attendance')
-            .select('*, users(name)')
-            .eq('cluster_id', clusterId)
-            .eq('date', date);
+        // In MongoDB, we might need a manual join or populate if we had foreign keys
+        // But for now, we'll just get the attendance records.
+        // If the frontend needs names, we might need to fetch users too.
+        const records = await Attendance.find({
+            cluster_id: clusterId,
+            date: date
+        }).lean();
 
-        if (error) throw error;
-        return data || [];
+        // Manual join for names since we're not using refs yet
+        const enrichedRecords = await Promise.all(records.map(async (rec) => {
+            const user = await User.findOne({ id: rec.user_id }).select('name').lean();
+            return { ...rec, users: user };
+        }));
+
+        return enrichedRecords;
     }
 };
