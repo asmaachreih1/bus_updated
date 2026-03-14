@@ -42,11 +42,12 @@ Install both frontend and backend dependencies:
 ```bash
 # Frontend
 npm install
+npm run dev
 
 # Backend
 cd server
 npm install
-cd ..
+npm start
 ```
 
 ### 3. Environment Variables
